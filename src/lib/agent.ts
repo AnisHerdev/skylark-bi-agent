@@ -1,9 +1,6 @@
-import { z } from "zod";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { fetchMondayBoard } from "./monday";
-import {
-  parseDeals,
-  parseWorkOrders,
-} from "./normalizer";
+import { parseDeals, parseWorkOrders } from "./normalizer";
 import {
   computePipelineMetrics,
   computeOperationalMetrics,
@@ -22,8 +19,14 @@ export interface AgentContext {
 }
 
 export async function fetchAgentContext(): Promise<AgentContext> {
-  const dealsBoardId = process.env.MONDAY_BOARD_ID_DEALS!;
-  const workOrdersBoardId = process.env.MONDAY_BOARD_ID_WORK_ORDERS!;
+  const dealsBoardId = process.env.MONDAY_BOARD_ID_DEALS;
+  const workOrdersBoardId = process.env.MONDAY_BOARD_ID_WORK_ORDERS;
+
+  if (!dealsBoardId || !workOrdersBoardId) {
+    throw new Error(
+      "Missing Monday.com Board IDs. Please configure MONDAY_BOARD_ID_DEALS and MONDAY_BOARD_ID_WORK_ORDERS in .env.local"
+    );
+  }
 
   const [dealsItems, workOrderItems] = await Promise.all([
     fetchMondayBoard(dealsBoardId),
@@ -37,26 +40,27 @@ export async function fetchAgentContext(): Promise<AgentContext> {
 }
 
 export function buildSystemPrompt(): string {
-  return `You are Skylark BI Agent, an AI business analyst for a company. You have access to two datasets fetched from monday.com:
+  return `You are Skylark BI Agent, an expert conversational AI business analyst. You connect directly to live business operations data from monday.com:
 
-1. DEALS — the sales pipeline
-2. WORK ORDERS — operational/project execution
+1. DEALS — Sales pipeline, deal values, stages, probability, sales owners, and expected close dates.
+2. WORK ORDERS — Project delivery, client work orders, start/end dates, delay statuses, and assigned teams.
 
-When answering questions:
-- Always provide a direct answer first, then key metrics, then insights, then risks, then data quality caveats.
-- If data is missing or incomplete, call it out explicitly.
-- If a question is ambiguous, state your assumptions clearly.
-- Compare across sectors, stages, and time periods when relevant.
-- For leadership updates, structure as: Sales Summary, Operations Summary, Risks, Recommended Actions.
-- Never fabricate data. Only use what is provided.
-- Format currency values in Indian Rupees (₹) with appropriate units (Cr for crores, L for lakhs).
-- Current date: ${new Date().toISOString().split("T")[0]}`;
+When answering founder or executive questions, adhere strictly to these principles:
+- **Direct Answer First**: Start immediately with a clear, concise answer to what was asked.
+- **Key Metrics & Data**: Highlight specific metrics, currency values (in Indian Rupees ₹ Cr/Lakhs), counts, and stages.
+- **Strategic Business Insights**: Explain what the data means (e.g., concentration risk, win-rate trends, delivery bottlenecks).
+- **Data Quality & Caveats**: Always report missing dates, unpopulated deal values, or assumptions made during calculation.
+- **Leadership Structure**: For leadership/executive summaries, structure as:
+  1. Executive Summary
+  2. Sales & Pipeline Performance
+  3. Operations & Delivery Health
+  4. Top Risks & Stalled Items
+  5. Recommended Action Items
+- **Truthful & Factual**: Never invent or hallucinate metrics. Rely strictly on the aggregated and granular data provided.
+- Current Reference Date: ${new Date().toISOString().split("T")[0]}`;
 }
 
-export function buildUserPrompt(
-  question: string,
-  ctx: AgentContext
-): string {
+export function buildUserPrompt(question: string, ctx: AgentContext): string {
   const pipelineMetrics = computePipelineMetrics(ctx.deals);
   const opsMetrics = computeOperationalMetrics(ctx.workOrders);
   const closingThisQuarter = getDealsClosingThisQuarter(ctx.deals);
@@ -69,47 +73,95 @@ export function buildUserPrompt(
     0
   );
 
-  return `## Question
+  return `## Executive Question
 ${question}
 
-## Pipeline Summary
-- Total active pipeline: ₹${formatCurrency(pipelineMetrics.totalValue)}
-- Active deals: ${pipelineMetrics.dealsCount ?? pipelineMetrics.dealCount}
-- Average deal size: ₹${formatCurrency(pipelineMetrics.avgDealSize)}
-- Deals closing this quarter: ${closingThisQuarter.length} (₹${formatCurrency(closingQuarterValue)})
-- Missing close dates: ${pipelineMetrics.missingCloseDates}
-- Missing deal values: ${pipelineMetrics.missingValues}
+## Pipeline Summary (Deals)
+- Total Active Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)}
+- Total Active Deals: ${pipelineMetrics.dealCount}
+- Average Deal Size: ₹${formatCurrency(pipelineMetrics.avgDealSize)}
+- Deals Expected to Close This Quarter: ${closingThisQuarter.length} (Total Value: ₹${formatCurrency(closingQuarterValue)})
+- Records Missing Close Dates: ${pipelineMetrics.missingCloseDates}
+- Records Missing Deal Values: ${pipelineMetrics.missingValues}
 
-## Pipeline by Stage
+## Pipeline Breakdown by Stage
 ${Object.entries(pipelineMetrics.byStage)
-  .map(([stage, data]) => `- ${stage}: ${data.count} deals, ₹${formatCurrency(data.value)}`)
+  .map(([stage, data]) => `- ${stage.toUpperCase()}: ${data.count} deals, ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Pipeline by Sector
+## Pipeline Breakdown by Sector
 ${Object.entries(pipelineMetrics.bySector)
   .map(([sector, data]) => `- ${sector}: ${data.count} deals, ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Operations Summary
-- Total work orders: ${opsMetrics.totalWorkOrders}
-- Active: ${opsMetrics.activeCount}
-- Delayed: ${opsMetrics.delayedCount}
+## Operational Execution Summary (Work Orders)
+- Total Work Orders: ${opsMetrics.totalWorkOrders}
+- Active / In-Progress: ${opsMetrics.activeCount}
+- Delayed / Overdue: ${opsMetrics.delayedCount}
 - Completed: ${opsMetrics.completedCount}
-- Total value: ₹${formatCurrency(opsMetrics.totalValue)}
+- Total Work Order Value: ₹${formatCurrency(opsMetrics.totalValue)}
 
-## Operations by Sector
+## Operations Breakdown by Sector
 ${Object.entries(opsMetrics.bySector)
   .map(([sector, data]) => `- ${sector}: ${data.count} orders, ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Stalled Deals (>30 days old, not closed)
-${stalledDeals.length > 0 ? stalledDeals.map((d) => `- ${d.name} (${d.sector}, ₹${formatCurrency(d.value ?? 0)}, stage: ${d.stage})`).join("\n") : "None"}
+## Stalled Deals (>30 days old without progress)
+${
+  stalledDeals.length > 0
+    ? stalledDeals
+        .map(
+          (d) =>
+            `- ${d.name} | Client: ${d.client} | Sector: ${d.sector} | Value: ₹${formatCurrency(d.value ?? 0)} | Stage: ${d.stage} | Owner: ${d.salesOwner}`
+        )
+        .join("\n")
+    : "None identified."
+}
 
-## Delayed Work Orders
-${delayedWOs.length > 0 ? delayedWOs.map((w) => `- ${w.name} (${w.sector}, ${w.customer})`).join("\n") : "None"}
+## Delayed Work Orders (At Risk)
+${
+  delayedWOs.length > 0
+    ? delayedWOs
+        .map(
+          (w) =>
+            `- ${w.name} | Customer: ${w.customer} | Sector: ${w.sector} | Team: ${w.assignedTeam} | Status: ${w.status}`
+        )
+        .join("\n")
+    : "None identified."
+}
 
-## Data Quality
-${dataQualitySummary}`;
+## Data Cleaning & Quality Audit
+${dataQualitySummary}
+`;
+}
+
+export async function generateGeminiResponse(
+  question: string,
+  ctx: AgentContext
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing GEMINI_API_KEY. Please add your Google AI Studio API key to .env.local"
+    );
+  }
+
+  const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: buildSystemPrompt(),
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 2500,
+    },
+  });
+
+  const prompt = buildUserPrompt(question, ctx);
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  return response.text() || "No response generated.";
 }
 
 function formatCurrency(value: number): string {

@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { z } from "zod";
 import {
   fetchAgentContext,
-  buildSystemPrompt,
-  buildUserPrompt,
+  generateGeminiResponse,
 } from "@/lib/agent";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const requestSchema = z.object({
   message: z.string().min(1, "Message is required"),
@@ -27,22 +23,11 @@ export async function POST(req: NextRequest) {
 
     const { message } = parsed.data;
 
+    // Fetch dynamic context from Monday.com boards and run data normalizer
     const ctx = await fetchAgentContext();
-    const systemPrompt = buildSystemPrompt();
-    const userPrompt = buildUserPrompt(message, ctx);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    });
-
-    const answer =
-      completion.choices[0]?.message?.content ?? "No response generated.";
+    // Generate executive business intelligence answer using Google Gemini 2.0 Flash
+    const answer = await generateGeminiResponse(message, ctx);
 
     return NextResponse.json({
       answer,
@@ -53,8 +38,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
-    const message =
+    const errorMessage =
       error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
