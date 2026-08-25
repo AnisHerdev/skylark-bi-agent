@@ -13,11 +13,14 @@ import {
   FileText,
   ArrowRight,
   Layers,
+  Square,
 } from "lucide-react";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 11);
 }
+
+const STORAGE_KEY = "skylark_chat_history_v1";
 
 const STARTER_CARDS = [
   {
@@ -62,8 +65,45 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 1. Load Chat History from LocalStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: ChatMessageType[] = JSON.parse(saved);
+        // Revive ISO date strings to Date objects
+        const hydrated = parsed.map((m) => ({
+          ...m,
+          timestamp: new Date(m.timestamp),
+        }));
+        setMessages(hydrated);
+      }
+    } catch (e) {
+      console.warn("Failed to load chat history from localStorage", e);
+    } finally {
+      setIsStorageLoaded(true);
+    }
+  }, []);
+
+  // 2. Persist Chat History to LocalStorage on change (only after initial load)
+  useEffect(() => {
+    if (!isStorageLoaded) return;
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (e) {
+      console.warn("Failed to save chat history to localStorage", e);
+    }
+  }, [messages, isStorageLoaded]);
+
+  // Auto-scroll to latest message
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -71,7 +111,18 @@ export default function Home() {
     });
   }, [messages, loading]);
 
+  // 3. Stop Generation handler
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+  };
+
   const handleSend = async (content: string) => {
+    if (loading) return;
+
     const userMsg: ChatMessageType = {
       id: generateId(),
       role: "user",
@@ -81,11 +132,15 @@ export default function Home() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: content }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -103,22 +158,39 @@ export default function Home() {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      const errMsg: ChatMessageType = {
-        id: generateId(),
-        role: "assistant",
-        content: `Sorry, something went wrong: ${
-          err instanceof Error ? err.message : "Unknown error"
-        }. Please verify that your Gemini API key and Monday.com boards are configured.`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      if (err instanceof Error && (err.name === "AbortError" || controller.signal.aborted)) {
+        const abortedMsg: ChatMessageType = {
+          id: generateId(),
+          role: "assistant",
+          content: "*(Analysis was stopped by user)*",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, abortedMsg]);
+      } else {
+        const errMsg: ChatMessageType = {
+          id: generateId(),
+          role: "assistant",
+          content: `Sorry, something went wrong: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }. Please verify your Gemini API key and Monday.com configuration.`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errMsg]);
+      }
     } finally {
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
 
   const handleClearChat = () => {
+    handleStop();
     setMessages([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.warn("Failed to clear localStorage", e);
+    }
   };
 
   return (
@@ -201,13 +273,13 @@ export default function Home() {
                   <ChatMessage key={msg.id} message={msg} />
                 ))}
 
-                {/* Loading / Thinking State */}
+                {/* Loading / Thinking State with Stop Action */}
                 {loading && (
                   <div className="flex items-start gap-3 mb-6">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-slate-950">
                       <Sparkles className="h-4 w-4" />
                     </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 min-w-[280px]">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
                           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-mint-pulse [animation-delay:-0.3s]" />
@@ -215,9 +287,18 @@ export default function Home() {
                           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-mint-pulse" />
                         </div>
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          Querying dataset & generating intelligence...
+                          Querying live Monday boards & generating intelligence...
                         </span>
                       </div>
+
+                      <button
+                        onClick={handleStop}
+                        className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-900 dark:hover:text-rose-400"
+                        title="Cancel generation"
+                      >
+                        <Square className="h-3 w-3 fill-current" />
+                        <span>Stop</span>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -227,7 +308,12 @@ export default function Home() {
         </main>
 
         {/* Input Dock */}
-        <ChatInput onSend={handleSend} disabled={loading} />
+        <ChatInput
+          onSend={handleSend}
+          onStop={handleStop}
+          loading={loading}
+          disabled={loading}
+        />
       </div>
     </div>
   );

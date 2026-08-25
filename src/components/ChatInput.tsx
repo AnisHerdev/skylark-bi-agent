@@ -1,19 +1,25 @@
 "use client";
 
 import { useState, useRef, FormEvent } from "react";
-import { Send, CornerDownLeft } from "lucide-react";
+import { Send, CornerDownLeft, Square } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop?: () => void;
+  loading?: boolean;
   disabled?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, loading, disabled }: ChatInputProps) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (loading && onStop) {
+      onStop();
+      return;
+    }
     const trimmed = input.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
@@ -53,31 +59,54 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
-          placeholder="Ask anything about sales, operations, or pipeline..."
-          disabled={disabled}
+          placeholder={
+            loading
+              ? "Generating executive answer..."
+              : "Ask anything about sales, operations, or pipeline..."
+          }
+          disabled={loading}
           rows={1}
           style={{ overflowY: "hidden" }}
-          className="flex-1 max-h-36 resize-none bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden disabled:opacity-50 dark:text-slate-100 dark:placeholder:text-slate-500 leading-normal"
+          className="flex-1 max-h-36 resize-none bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500 leading-normal"
         />
 
         <div className="flex items-center gap-1.5 pb-0.5 pr-0.5 sm:pb-1 sm:pr-1">
-          <button
-            type="submit"
-            disabled={disabled || !input.trim()}
-            className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
-            title="Send query (Enter)"
-          >
-            <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              onClick={onStop}
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-xs transition-all hover:bg-rose-500 active:scale-95 animate-pulse dark:bg-rose-500 dark:hover:bg-rose-400"
+              title="Stop generation"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+              title="Send query (Enter)"
+            >
+              <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          )}
         </div>
       </form>
 
-      {/* Desktop-only helper text */}
+      {/* Helper text */}
       <div className="mx-auto mt-2 hidden max-w-4xl items-center justify-center text-[10.5px] text-slate-400 dark:text-slate-500 sm:flex">
-        <span className="flex items-center gap-1">
-          <CornerDownLeft className="h-2.5 w-2.5" />
-          <span>Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line</span>
-        </span>
+        {loading ? (
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+            Generating live intelligence • Click stop anytime to cancel
+          </span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <CornerDownLeft className="h-2.5 w-2.5" />
+            <span>
+              Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line
+            </span>
+          </span>
+        )}
       </div>
     </div>
   );
