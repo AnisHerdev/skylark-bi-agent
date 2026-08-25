@@ -126,11 +126,28 @@ export function computeOperationalMetrics(workOrders: WorkOrder[]): OperationalM
 export function normalizeCompanyCode(code: string): string {
   if (!code) return "UNKNOWN";
   const clean = code.trim().toUpperCase();
+  if (
+    clean === "NONE" ||
+    clean === "NULL" ||
+    clean === "N/A" ||
+    clean === "-" ||
+    clean === "SPECTRA"
+  ) {
+    return "UNKNOWN";
+  }
+
   // Strip WOCOMPANY_ or COMPANY_ or COMPANY prefixes to get numeric ID (e.g. WOCOMPANY_001 -> COMPANY_001)
   const numMatch = clean.match(/(?:WOCOMPANY|COMPANY|WO_COMPANY|CUST)[_]?(\d+)/i);
   if (numMatch) {
     return `COMPANY_${numMatch[1].padStart(3, "0")}`;
   }
+
+  // Match SDPLDEAL-###
+  const sdplMatch = clean.match(/(?:SDPLDEAL)[-_]?(\d+)/i);
+  if (sdplMatch) {
+    return `SDPLDEAL_${sdplMatch[1].padStart(3, "0")}`;
+  }
+
   return clean;
 }
 
@@ -149,6 +166,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   for (const deal of deals) {
     const rawCode = deal.clientCode || deal.name;
     const norm = normalizeCompanyCode(rawCode);
+    if (norm === "UNKNOWN") continue;
+
     if (!clientMap[norm]) {
       clientMap[norm] = {
         primaryCode: rawCode,
@@ -164,6 +183,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   for (const wo of workOrders) {
     const rawCode = wo.customerCode || wo.name;
     const norm = normalizeCompanyCode(rawCode);
+    if (norm === "UNKNOWN") continue;
+
     if (!clientMap[norm]) {
       clientMap[norm] = {
         primaryCode: rawCode,
@@ -233,7 +254,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
     // Factor 3: Completed work with low/zero invoice realization
     if (completedWorkOrderCount > 0 && totalProjectValue > 0 && totalInvoicedValue < totalProjectValue * 0.4) {
       riskScore += 20;
-      riskReasons.push(`Low invoice realization (₹${(totalProjectValue - totalInvoicedValue).toLocaleString()} unbilled/uncollected)`);
+      const unbilled = Math.max(0, Math.round(totalProjectValue - totalInvoicedValue));
+      riskReasons.push(`Low invoice realization (₹${unbilled.toLocaleString()} unbilled/uncollected)`);
     }
 
     // Factor 4: High volume of open deals with zero closure date
@@ -270,6 +292,7 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   // Sort by riskScore descending
   return profiles.sort((a, b) => b.riskScore - a.riskScore);
 }
+
 
 export function getHighRiskClients(profiles: ClientProfile[]): ClientProfile[] {
   return profiles.filter((p) => p.riskScore >= 40 || p.pausedWorkOrderCount > 0);
@@ -381,5 +404,75 @@ export function buildCombinedDataQuality(
     workOrders: woQ,
     summaryNotes,
   };
+}
+
+export function computeStageFunnel(deals: Deal[]): import("./types").StageFunnelItem[] {
+  const STAGE_ORDER: { stage: import("./types").DealStage; label: string }[] = [
+    { stage: "lead", label: "Lead Identification" },
+    { stage: "qualification", label: "Qualified / Scoped" },
+    { stage: "proposal", label: "Proposal Submitted" },
+    { stage: "negotiation", label: "Contract & Negotiation" },
+    { stage: "closed_won", label: "Closed Won" },
+  ];
+
+  return STAGE_ORDER.map((item) => {
+    const stageDeals = deals.filter((d) => d.stage === item.stage);
+    const value = stageDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+    return {
+      stage: item.stage,
+      label: item.label,
+      count: stageDeals.length,
+      value,
+    };
+  });
+}
+
+export function computeSectorComparisons(
+  deals: Deal[],
+  workOrders: WorkOrder[]
+): import("./types").SectorComparison[] {
+  const sectorMap: Record<
+    string,
+    { pipelineValue: number; poValue: number; dealCount: number; workOrderCount: number }
+  > = {};
+
+  const getCleanSector = (raw: string) => {
+    if (!raw || raw.toLowerCase() === "others") return "Other Sectors";
+    // Format nicely: energy -> Energy, pure_service -> Pure Service
+    return raw
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  for (const deal of deals) {
+    if (deal.stage === "closed_lost") continue;
+    const s = getCleanSector(deal.sector);
+    if (!sectorMap[s]) {
+      sectorMap[s] = { pipelineValue: 0, poValue: 0, dealCount: 0, workOrderCount: 0 };
+    }
+    sectorMap[s].pipelineValue += deal.value ?? 0;
+    sectorMap[s].dealCount += 1;
+  }
+
+  for (const wo of workOrders) {
+    const s = getCleanSector(wo.sector);
+    if (!sectorMap[s]) {
+      sectorMap[s] = { pipelineValue: 0, poValue: 0, dealCount: 0, workOrderCount: 0 };
+    }
+    sectorMap[s].poValue += wo.value ?? 0;
+    sectorMap[s].workOrderCount += 1;
+  }
+
+  return Object.entries(sectorMap)
+    .map(([sector, data]) => ({
+      sector,
+      pipelineValue: data.pipelineValue,
+      poValue: data.poValue,
+      dealCount: data.dealCount,
+      workOrderCount: data.workOrderCount,
+    }))
+    .sort((a, b) => b.pipelineValue + b.poValue - (a.pipelineValue + a.poValue));
 }
 

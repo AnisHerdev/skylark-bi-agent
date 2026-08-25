@@ -256,6 +256,137 @@ export async function generateGeminiResponse(
   return { answer, suggestions };
 }
 
+export async function generateDashboardInsights(
+  ctx: AgentContext
+): Promise<import("./types").DashboardInsight> {
+  const pipelineMetrics = computePipelineMetrics(ctx.deals);
+  const opsMetrics = computeOperationalMetrics(ctx.workOrders);
+  const highRiskClients = getHighRiskClients(ctx.clientProfiles);
+  const closingThisQuarter = getDealsClosingThisQuarter(ctx.deals);
+  const delayedWOs = getDelayedWorkOrders(ctx.workOrders);
+  const stalledDeals = getStalledDeals(ctx.deals);
+
+  const fallbackInsights: import("./types").DashboardInsight = {
+    headline: `Active Pipeline at ₹${formatCurrency(pipelineMetrics.totalValue)} with ₹${formatCurrency(opsMetrics.totalValue)} in Active PO Contracts`,
+    takeaways: [
+      `${pipelineMetrics.dealCount} active opportunities tracked across ${Object.keys(pipelineMetrics.bySector).length} sectors.`,
+      `₹${formatCurrency(opsMetrics.totalInvoiced)} invoiced out of ₹${formatCurrency(opsMetrics.totalValue)} total PO contract execution.`,
+      `${closingThisQuarter.length} deal(s) scheduled for closure this quarter.`,
+    ],
+    riskAlerts: [
+      delayedWOs.length > 0 ? `${delayedWOs.length} work order(s) currently paused or delayed in execution.` : "Operations on schedule.",
+      highRiskClients.length > 0 ? `${highRiskClients.length} high-risk client account(s) flagged due to paused orders or dead conversion rates.` : "No critical client risk flags.",
+      stalledDeals.length > 0 ? `${stalledDeals.length} stalled deal(s) requiring sales pipeline follow-up.` : "Pipeline velocity is healthy.",
+    ],
+    proactiveQuestions: [
+      {
+        id: "q-risk-clients",
+        title: "At-Risk Account Review",
+        anomaly: highRiskClients.length > 0 ? `${highRiskClients[0]?.clientCode} has a risk score of ${highRiskClients[0]?.riskScore}/100 with stalled execution` : "Monitor high-risk clients",
+        query: "Which clients should we consider discontinuing or renegotiating due to execution friction and dead deals?",
+        category: "risk",
+        impactBadge: "Critical Risk",
+      },
+      {
+        id: "q-unbilled-ops",
+        title: "Unbilled Revenue Recovery",
+        anomaly: `₹${formatCurrency(Math.max(0, opsMetrics.totalValue - opsMetrics.totalInvoiced))} in unbilled work order balances`,
+        query: "Which work orders have completed execution but low invoice realization?",
+        category: "revenue",
+        impactBadge: "Cashflow",
+      },
+      {
+        id: "q-delayed-delivery",
+        title: "Delivery Bottleneck Audit",
+        anomaly: `${opsMetrics.onHoldCount} work order(s) paused/struck & ${opsMetrics.delayedCount} delayed`,
+        query: "Break down delayed and paused work orders by assigned team and client.",
+        category: "operations",
+        impactBadge: "Operations",
+      },
+      {
+        id: "q-sector-pipeline",
+        title: "Sector Growth Opportunity",
+        anomaly: "Sector conversion variance across Energy, Mining & Renewables",
+        query: "Compare Energy vs Mining vs Renewables in pipeline value and execution delivery.",
+        category: "revenue",
+        impactBadge: "Strategic",
+      },
+    ],
+  };
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return fallbackInsights;
+  }
+
+  try {
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        maxOutputTokens: 2000,
+      },
+      systemInstruction: `You are the Skylark BI Chief Strategy Analyst. Your job is to analyze real-time Deals and Work Orders datasets and generate high-level founder executive insights and 4 proactive, high-impact diagnostic inquiry questions that the AI should ask the founder to investigate business anomalies.
+
+Respond strictly in JSON adhering to this TypeScript interface:
+{
+  "headline": string, // Punchy 1-sentence executive state of business
+  "takeaways": string[], // Exactly 3 concise business observations (revenue, sector momentum, win rates)
+  "riskAlerts": string[], // Exactly 3 critical operational or pipeline alerts (bottlenecks, stalled deals, churn)
+  "proactiveQuestions": [ // Exactly 4 proactive inquiry questions for the founder
+    {
+      "id": string,
+      "title": string, // Short title (2-4 words)
+      "anomaly": string, // The specific data anomaly detected (e.g., "₹45L paused in Energy", "3 deals missing close dates")
+      "query": string, // The natural language question to ask the AI agent when clicked
+      "category": "revenue" | "risk" | "operations" | "client",
+      "impactBadge": string // Short badge (e.g. "Critical", "Cashflow", "High Margin", "Bottleneck")
+    }
+  ]
+}`,
+    });
+
+    const promptText = `Analyze the current live dataset and return the strategic executive insights JSON:
+- Total Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)} across ${pipelineMetrics.dealCount} deals
+- Total PO Contracts Value: ₹${formatCurrency(opsMetrics.totalValue)} | Total Invoiced: ₹${formatCurrency(opsMetrics.totalInvoiced)}
+- Delayed/Paused Work Orders: ${opsMetrics.delayedCount + opsMetrics.onHoldCount} (${opsMetrics.onHoldCount} paused/struck)
+- High Risk Clients: ${highRiskClients.map((c) => `${c.clientCode} (Risk: ${c.riskScore}, Reasons: ${c.riskReasons.join(", ")})`).slice(0, 5).join("; ")}
+- Closing This Quarter: ${closingThisQuarter.length} deals
+- Stalled Deals: ${stalledDeals.map((d) => `${d.name} (${d.clientCode}, ₹${formatCurrency(d.value ?? 0)})`).slice(0, 5).join("; ")}
+- Sectors with largest value: ${Object.entries(pipelineMetrics.bySector).map(([s, d]) => `${s}: ₹${formatCurrency(d.value)}`).join(", ")}
+`;
+
+    const result = await model.generateContent(promptText);
+    const jsonText = result.response.text();
+    if (jsonText) {
+      const parsed = JSON.parse(jsonText);
+      if (parsed.headline && Array.isArray(parsed.takeaways) && Array.isArray(parsed.proactiveQuestions)) {
+        return {
+          headline: parsed.headline,
+          takeaways: parsed.takeaways.slice(0, 3),
+          riskAlerts: Array.isArray(parsed.riskAlerts) ? parsed.riskAlerts.slice(0, 3) : fallbackInsights.riskAlerts,
+          proactiveQuestions: parsed.proactiveQuestions.slice(0, 4).map((q: Partial<import("./types").ProactiveQuestion>, idx: number) => ({
+            id: q.id || `q-${idx}`,
+            title: q.title || "Key Insight",
+            anomaly: q.anomaly || "Identified in live dataset",
+            query: q.query || fallbackInsights.proactiveQuestions[idx]?.query || "Analyze business performance.",
+            category: q.category || "revenue",
+            impactBadge: q.impactBadge || "Growth",
+          })),
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to generate dynamic dashboard insights via Gemini, using analytical fallback:", e);
+  }
+
+  return fallbackInsights;
+}
+
 function formatCurrency(value: number): string {
   if (value >= 10000000) return `${(value / 10000000).toFixed(2)} Cr`;
   if (value >= 100000) return `${(value / 100000).toFixed(2)} L`;

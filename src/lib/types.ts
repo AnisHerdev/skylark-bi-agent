@@ -189,3 +189,51 @@ export type MondayPaginationResponse = MondayGraphQLResponse<{
     cursor: string | null;
   };
 }>;
+
+export interface ProactiveQuestion {
+  id: string;
+  query: string;
+  category: "revenue" | "risk" | "operations" | "client";
+  title: string;
+  anomaly: string;
+  impactBadge: string;
+}
+
+export interface DashboardInsight {
+  headline: string;
+  takeaways: string[];
+  riskAlerts: string[];
+  proactiveQuestions: ProactiveQuestion[];
+}
+
+export interface SectorComparison {
+  sector: string;
+  pipelineValue: number;
+  poValue: number;
+  dealCount: number;
+  workOrderCount: number;
+}
+
+export interface StageFunnelItem {
+  stage: DealStage;
+  label: string;
+  count: number;
+  value: number;
+}
+
+export interface DashboardData {
+  pipelineMetrics: PipelineMetrics;
+  opsMetrics: OperationalMetrics;
+  clientProfiles: ClientProfile[];
+  highRiskClients: ClientProfile[];
+  topClients: ClientProfile[];
+  sectorComparisons: SectorComparison[];
+  stageFunnel: StageFunnelItem[];
+  dealsClosingThisQuarter: Deal[];
+  stalledDeals: Deal[];
+  delayedWorkOrders: WorkOrder[];
+  dataQuality: CombinedDataQuality;
+  insights: DashboardInsight;
+  syncedAt: string;
+}
+
