@@ -32,45 +32,44 @@ const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const STARTER_CARDS = [
   {
-    category: "Pipeline & Revenue",
+    category: "Sales & Pipeline",
     icon: TrendingUp,
     color: "text-emerald-800 dark:text-emerald-400",
     bgColor: "bg-emerald-500/10",
     borderHover: "hover:border-emerald-400 dark:hover:border-emerald-600",
     query: "How is our pipeline looking this quarter?",
-    description: "Analyze active deal volumes, total pipeline value, and stage distribution.",
+    description: "View active deals, total pipeline value, and win rates.",
   },
   {
-    category: "Sector Intelligence",
+    category: "Sector Comparison",
     icon: Layers,
     color: "text-teal-800 dark:text-teal-400",
     bgColor: "bg-teal-500/10",
     borderHover: "hover:border-teal-400 dark:hover:border-teal-600",
     query: "Compare Energy vs Manufacturing pipeline.",
-    description: "Sector-by-sector breakdown of deal counts, win rates, and total PO values.",
+    description: "Compare sectors by deal counts, revenue, and order value.",
   },
   {
-    category: "Operations & Delivery",
+    category: "Operations & Orders",
     icon: Workflow,
     color: "text-blue-800 dark:text-blue-400",
     bgColor: "bg-blue-500/10",
     borderHover: "hover:border-blue-400 dark:hover:border-blue-600",
     query: "How many work orders are delayed?",
-    description: "Track execution status, bottleneck projects, and unbilled work order balances.",
+    description: "Check status of ongoing projects and pending invoices.",
   },
   {
-    category: "Executive Briefing",
+    category: "Summary Report",
     icon: ExecutiveBriefingIcon,
     color: "text-indigo-800 dark:text-indigo-400",
     bgColor: "bg-indigo-500/10",
     borderHover: "hover:border-indigo-400 dark:hover:border-indigo-600",
     query: "Generate a comprehensive leadership update.",
-    description: "Synthesize an executive briefing with revenue wins, delivery alerts, and risks.",
+    description: "Get a clear summary of revenue wins, delivery alerts, and risks.",
   },
 ];
 
 export default function Home() {
-  // Navigation View State: Primary view is Executive Dashboard
   const [activeView, setActiveView] = useState<"dashboard" | "chat">("dashboard");
 
   // Dashboard Data & Sync State
@@ -131,7 +130,7 @@ export default function Home() {
     loadDashboardData(false);
   }, [loadDashboardData]);
 
-  // 2. 5-Minute Auto-Sync Polling Engine with Visibility Detection
+  // 2. Auto-Sync Polling Engine
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -156,7 +155,7 @@ export default function Home() {
     };
   }, [loadDashboardData, lastSyncedTime]);
 
-  // Dynamic "Synced Xm ago" ticker
+  // Dynamic ticker
   useEffect(() => {
     const updateTicker = () => {
       if (!lastSyncedTime) {
@@ -177,7 +176,7 @@ export default function Home() {
     return () => clearInterval(tickerInterval);
   }, [lastSyncedTime]);
 
-  // Persist Chat History to LocalStorage
+  // Persist Chat History
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true;
@@ -194,7 +193,7 @@ export default function Home() {
     }
   }, [messages]);
 
-  // Auto-scroll to latest message in Chat View
+  // Auto-scroll in Chat View
   useEffect(() => {
     if (activeView === "chat") {
       scrollRef.current?.scrollTo({
@@ -204,7 +203,7 @@ export default function Home() {
     }
   }, [messages, loading, activeView]);
 
-  // Stop Generation handler
+  // Stop Generation
   const handleStop = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -216,7 +215,6 @@ export default function Home() {
   const handleSend = async (content: string) => {
     if (loading) return;
 
-    // Switch to chat view immediately
     setActiveView("chat");
 
     const userMsg: ChatMessageType = {
@@ -269,7 +267,7 @@ export default function Home() {
           role: "assistant",
           content: `Sorry, something went wrong: ${
             err instanceof Error ? err.message : "Unknown error"
-          }. Please verify your Gemini API key and Monday.com configuration.`,
+          }. Please verify your connection.`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errMsg]);
@@ -292,7 +290,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)]">
-      {/* Collapsible Sidebar */}
+      {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
         onCloseMobile={() => setSidebarOpen(false)}
@@ -317,7 +315,7 @@ export default function Home() {
           lastSyncedText={timeAgoText}
         />
 
-        {/* View 1: Executive Dashboard View */}
+        {/* View 1: Dashboard View */}
         {activeView === "dashboard" && (
           <main
             id="view-dashboard"
@@ -336,7 +334,7 @@ export default function Home() {
           </main>
         )}
 
-        {/* View 2: AI Strategic Inquiries Conversational Workspace */}
+        {/* View 2: AI Chat Workspace */}
         {activeView === "chat" && (
           <>
             <main
@@ -349,16 +347,16 @@ export default function Home() {
               <div className="mx-auto max-w-4xl">
                 {messages.length === 0 ? (
                   <div className="flex min-h-[70vh] flex-col items-center justify-center py-6">
-                    {/* Hero Icon & Title */}
+                    {/* Brand Icon & Simple Title */}
                     <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-md shadow-emerald-700/20 dark:bg-emerald-600">
                       <SkylarkLogo className="h-7 w-7 text-white" />
                     </div>
 
                     <h1 className="text-center text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
-                      Skylark Business Intelligence
+                      Skylark BI
                     </h1>
                     <p className="mt-1.5 max-w-md text-center text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                      Ask strategic questions across sales pipelines, work order execution, customer health, and executive briefings.
+                      Ask any question about your sales, pipeline, work orders, or client health.
                     </p>
 
                     {/* Starter Prompt Cards Grid */}
@@ -407,7 +405,7 @@ export default function Home() {
                       />
                     ))}
 
-                    {/* Loading / Thinking State */}
+                    {/* Loading State */}
                     {loading && (
                       <div className="flex items-start gap-3 mb-6" aria-live="polite">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs dark:bg-emerald-600">
@@ -421,15 +419,15 @@ export default function Home() {
                               <div className="h-2 w-2 rounded-full bg-emerald-600 animate-mint-pulse" />
                             </div>
                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              Querying live Monday boards & generating intelligence...
+                              Checking live boards & preparing answer...
                             </span>
                           </div>
 
                           <button
                             onClick={handleStop}
                             className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-950 dark:hover:border-rose-800 dark:hover:text-rose-300"
-                            title="Cancel analysis"
-                            aria-label="Cancel analysis"
+                            title="Cancel answer"
+                            aria-label="Cancel answer"
                           >
                             <Square className="h-3 w-3 fill-current" aria-hidden="true" />
                             <span>Stop</span>
@@ -442,7 +440,7 @@ export default function Home() {
               </div>
             </main>
 
-            {/* Single Elegant Input Dock */}
+            {/* Input Dock */}
             <ChatInput
               onSend={handleSend}
               onStop={handleStop}

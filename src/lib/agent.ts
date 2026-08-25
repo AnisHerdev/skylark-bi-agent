@@ -371,11 +371,11 @@ Respond strictly in JSON adhering to this TypeScript interface:
           riskAlerts: Array.isArray(parsed.riskAlerts) ? parsed.riskAlerts.slice(0, 3) : fallbackInsights.riskAlerts,
           proactiveQuestions: parsed.proactiveQuestions.slice(0, 4).map((q: Partial<import("./types").ProactiveQuestion>, idx: number) => ({
             id: q.id || `q-${idx}`,
-            title: q.title || "Strategic Inquiry",
+            title: q.title || "Key Insight",
             anomaly: q.anomaly || "Identified in live dataset",
             query: q.query || fallbackInsights.proactiveQuestions[idx]?.query || "Analyze business performance.",
             category: q.category || "revenue",
-            impactBadge: q.impactBadge || "Strategic",
+            impactBadge: q.impactBadge || "Growth",
           })),
         };
       }

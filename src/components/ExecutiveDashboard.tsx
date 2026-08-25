@@ -17,7 +17,7 @@ import {
   ArrowUpRight,
   RotateCw,
   Layers,
-  Radar,
+  Sparkles,
 } from "lucide-react";
 import {
   PipelineFunnelChart,
@@ -100,15 +100,15 @@ export function ExecutiveDashboard({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
-              Executive Command Center
+              Business Dashboard
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700/80">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" aria-hidden="true" />
-              Live Boards
+              Live Data
             </span>
           </div>
           <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
-            Real-time pipeline analytics, operational delivery health, and automated governance
+            Real-time sales, order delivery, client status, and insights
           </p>
         </div>
 
@@ -116,7 +116,7 @@ export function ExecutiveDashboard({
           {/* Health Score Badge */}
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-300/80 bg-white px-3 py-1.5 text-xs shadow-2xs dark:border-slate-700 dark:bg-slate-900">
             <CheckCircle className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-            <span className="text-slate-600 dark:text-slate-300 font-medium">Data Integrity:</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Data Health:</span>
             <span className="font-bold text-slate-900 dark:text-slate-100">
               {dataQuality.overallHealthScore}%
             </span>
@@ -127,12 +127,12 @@ export function ExecutiveDashboard({
             className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-600 active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500"
           >
             <ExecutiveBriefingIcon className="h-3.5 w-3.5 text-white" />
-            <span>Executive Briefing</span>
+            <span>Executive Summary</span>
           </button>
         </div>
       </section>
 
-      {/* 1. Proactive Strategic Pulse & Anomaly Inquiries */}
+      {/* 1. Key Highlights & Questions you can ask */}
       <section
         aria-labelledby="strategic-pulse-heading"
         className="relative overflow-hidden rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-transparent p-4 sm:p-5 shadow-xs dark:border-emerald-700/60 dark:bg-slate-900/60"
@@ -147,7 +147,7 @@ export function ExecutiveDashboard({
               id="strategic-pulse-heading"
               className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300"
             >
-              Strategic Pulse
+              Key Highlights
             </span>
           </div>
 
@@ -163,7 +163,7 @@ export function ExecutiveDashboard({
                 className="rounded-xl border border-slate-200 bg-white/90 p-3 text-xs leading-relaxed text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-200"
               >
                 <div className="font-bold text-emerald-800 dark:text-emerald-400 text-xs mb-1">
-                  Key Point #{idx + 1}
+                  Point #{idx + 1}
                 </div>
                 {takeaway}
               </div>
@@ -171,15 +171,15 @@ export function ExecutiveDashboard({
           </div>
         </div>
 
-        {/* Proactive Inquiries Grid */}
+        {/* Suggested Questions Grid */}
         <div className="mt-5 border-t border-slate-200/90 pt-4 dark:border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100">
-              <Radar className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-              <span>Proactive Anomaly Inquiries</span>
+              <Sparkles className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+              <span>Questions You Can Ask</span>
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              Tap any inquiry to investigate with AI
+              Click any question to ask the AI
             </span>
           </div>
 
@@ -215,7 +215,7 @@ export function ExecutiveDashboard({
                 </div>
 
                 <div className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-emerald-800 dark:text-emerald-400">
-                  <span>Analyze</span>
+                  <span>Ask AI</span>
                   <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" aria-hidden="true" />
                 </div>
               </button>
@@ -276,7 +276,7 @@ export function ExecutiveDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              PO Contracts
+              PO Orders
             </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-400">
               <Briefcase className="h-4 w-4" aria-hidden="true" />
@@ -320,7 +320,7 @@ export function ExecutiveDashboard({
           <div className="mt-2 flex flex-col xs:flex-row xs:items-center justify-between text-xs text-slate-600 dark:text-slate-300 gap-0.5">
             <span>{formatCurrency(totalUnbilled)} unbilled</span>
             <span className="text-blue-700 dark:text-blue-400 font-semibold group-hover:underline">
-              Audit cashflow
+              View balance
             </span>
           </div>
         </div>
@@ -340,7 +340,7 @@ export function ExecutiveDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              At-Risk Accounts
+              High Risk Clients
             </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
@@ -352,13 +352,13 @@ export function ExecutiveDashboard({
           <div className="mt-2 flex flex-col xs:flex-row xs:items-center justify-between text-xs text-slate-600 dark:text-slate-300 gap-0.5">
             <span>{opsMetrics.onHoldCount} paused orders</span>
             <span className="text-rose-700 dark:text-rose-400 font-semibold group-hover:underline">
-              Inspect risk
+              Inspect
             </span>
           </div>
         </div>
       </section>
 
-      {/* 3. Visual Charts Grid: 2-Column Responsive Layout */}
+      {/* 3. Visual Charts Grid */}
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Left 2 Cols: Pipeline Stage Funnel & Sector Comparison */}
         <div className="lg:col-span-2 space-y-5">
@@ -370,7 +370,7 @@ export function ExecutiveDashboard({
             />
           </div>
 
-          {/* Chart 2: Sector Intelligence Comparison */}
+          {/* Chart 2: Sector Comparison */}
           <div className="rounded-2xl border border-slate-300/80 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-700 dark:bg-slate-900">
             <SectorComparisonChart
               data={sectorComparisons}
@@ -379,7 +379,7 @@ export function ExecutiveDashboard({
           </div>
         </div>
 
-        {/* Right 1 Col: Operations Health & Quick Action Playbooks */}
+        {/* Right 1 Col: Operations Health & Quick Questions */}
         <div className="space-y-5">
           {/* Operations Status Donut */}
           <div className="rounded-2xl border border-slate-300/80 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-700 dark:bg-slate-900">
@@ -389,14 +389,14 @@ export function ExecutiveDashboard({
             />
           </div>
 
-          {/* Quick Leadership Inquiries */}
+          {/* Quick Questions */}
           <div className="rounded-2xl border border-slate-300/80 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-700 dark:bg-slate-900 space-y-3">
             <div className="flex items-center gap-2">
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                 <Layers className="h-3.5 w-3.5" aria-hidden="true" />
               </div>
               <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-                Leadership Playbooks
+                Quick Questions
               </h3>
             </div>
 
@@ -413,14 +413,14 @@ export function ExecutiveDashboard({
                   desc: `${data.stalledDeals.length} opportunities needing attention`,
                 },
                 {
-                  label: "Unbilled Delivery Backlog",
+                  label: "Unbilled Work Orders",
                   query: "Which completed work orders have uncollected revenue?",
                   desc: `${formatCurrency(totalUnbilled)} pending invoicing`,
                 },
                 {
-                  label: "Client Churn & Friction Audit",
+                  label: "Client Churn & Stalled Projects",
                   query: "Which clients have dead deals or stalled projects?",
-                  desc: "Cross-board client relationship risk",
+                  desc: "Identify client relationship risks",
                 },
               ].map((item) => (
                 <button
@@ -442,7 +442,7 @@ export function ExecutiveDashboard({
         </div>
       </section>
 
-      {/* 4. High-Risk Accounts Watchlist (Responsive: Table on Desktop, Cards on Mobile) */}
+      {/* 4. High-Risk Clients (Responsive) */}
       <section
         aria-labelledby="risk-watchlist-heading"
         className="rounded-2xl border border-slate-300/80 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-700 dark:bg-slate-900"
@@ -452,11 +452,11 @@ export function ExecutiveDashboard({
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400" aria-hidden="true" />
               <h3 id="risk-watchlist-heading" className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                High-Risk Client Watchlist
+                High-Risk Clients
               </h3>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              Accounts flagged for paused work orders, dead-deal churn, or uncollected balances
+              Clients flagged for paused work orders, lost deals, or unbilled balances
             </p>
           </div>
 
@@ -468,7 +468,7 @@ export function ExecutiveDashboard({
             }
             className="flex items-center gap-1 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:underline self-start sm:self-auto focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
-            <span>Run Churn Analysis</span>
+            <span>Analyze Client Risks</span>
             <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
@@ -542,14 +542,14 @@ export function ExecutiveDashboard({
               ))}
             </div>
 
-            {/* Desktop / Tablet View (>=640px): Rich Accessible Table */}
+            {/* Desktop / Tablet View (>=640px): Table */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-bold text-slate-700 uppercase tracking-wider dark:border-slate-800 dark:text-slate-300">
                     <th scope="col" className="py-2.5 px-3">Client Code</th>
                     <th scope="col" className="py-2.5 px-3">Risk Score</th>
-                    <th scope="col" className="py-2.5 px-3">Deals (Won/Dead)</th>
+                    <th scope="col" className="py-2.5 px-3">Deals (Won/Lost)</th>
                     <th scope="col" className="py-2.5 px-3">Work Orders</th>
                     <th scope="col" className="py-2.5 px-3">PO / Pipeline Value</th>
                     <th scope="col" className="py-2.5 px-3">Primary Risk Drivers</th>
@@ -580,7 +580,7 @@ export function ExecutiveDashboard({
                         </span>
                       </td>
                       <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
-                        {client.dealCount} total ({client.wonDealCount}W / {client.deadDealCount}D)
+                        {client.dealCount} total ({client.wonDealCount} won / {client.deadDealCount} lost)
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                           {client.winRate.toFixed(0)}% Win Rate
                         </div>
@@ -640,7 +640,7 @@ function DashboardSkeleton() {
         <div className="h-8 w-36 rounded-xl bg-slate-200 dark:bg-slate-800" />
       </div>
 
-      {/* AI Pulse Banner Skeleton */}
+      {/* Highlights Banner Skeleton */}
       <div className="rounded-2xl border border-slate-200 bg-slate-100/60 p-5 dark:border-slate-800 dark:bg-slate-900/40 space-y-4">
         <div className="h-4 w-32 rounded-md bg-emerald-200/60 dark:bg-emerald-900/40" />
         <div className="h-5 w-3/4 rounded-lg bg-slate-200 dark:bg-slate-800" />
