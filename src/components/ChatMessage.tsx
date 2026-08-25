@@ -41,7 +41,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
           </span>
           {!isUser && (
             <span className="font-medium text-emerald-600 dark:text-emerald-400">
-              ⚡ Gemini 2.0 Flash
+              ⚡ Gemini 2.5 Flash
             </span>
           )}
         </div>

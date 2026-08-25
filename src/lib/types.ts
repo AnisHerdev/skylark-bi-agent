@@ -17,13 +17,16 @@ export interface Deal {
   id: string;
   name: string;
   client: string;
+  clientCode: string;
+  ownerCode: string;
   sector: string;
   value: number | null;
   stage: DealStage;
+  dealStatus: string;
   expectedCloseDate: Date | null;
   probability: number | null;
+  productDeal: string;
   salesOwner: string;
-  status: string;
   createdAt: Date | null;
   rawData: Record<string, unknown>;
 }
@@ -31,19 +34,50 @@ export interface Deal {
 export interface WorkOrder {
   id: string;
   name: string;
+  dealNameMasked: string;
   customer: string;
+  customerCode: string;
   sector: string;
-  value: number | null;
-  status: WorkOrderStatus;
+  value: number | null; // PO Value (Excl GST)
+  totalInvoiced: number | null;
+  invoiceStatus: string;
+  status: WorkOrderStatus; // Execution Status
+  natureOfWork: string;
   startDate: Date | null;
   endDate: Date | null;
   completionPercent: number | null;
   assignedTeam: string;
+  ownerCode: string;
   rawData: Record<string, unknown>;
+}
+
+export interface ClientProfile {
+  clientCode: string;
+  normalizedCode: string;
+  dealCount: number;
+  openDealCount: number;
+  wonDealCount: number;
+  deadDealCount: number;
+  totalPipelineValue: number;
+  wonValue: number;
+  winRate: number; // 0 - 100%
+  deadRate: number; // 0 - 100%
+  workOrderCount: number;
+  activeWorkOrderCount: number;
+  pausedWorkOrderCount: number;
+  completedWorkOrderCount: number;
+  totalProjectValue: number;
+  totalInvoicedValue: number;
+  sectors: string[];
+  owners: string[];
+  riskScore: number; // 0 (healthy) - 100 (high risk)
+  riskReasons: string[];
 }
 
 export interface DataQualityReport {
   totalRecords: number;
+  validRecords: number;
+  droppedHeaderRows: number;
   missingFields: { field: string; count: number }[];
   normalizedSectors: { original: string; normalized: string }[];
   invalidDates: number;
@@ -56,6 +90,8 @@ export interface PipelineMetrics {
   avgDealSize: number;
   byStage: Record<string, { count: number; value: number }>;
   bySector: Record<string, { count: number; value: number }>;
+  byStatus: Record<string, number>;
+  byOwner: Record<string, { count: number; value: number }>;
   missingCloseDates: number;
   missingValues: number;
 }
@@ -65,8 +101,12 @@ export interface OperationalMetrics {
   activeCount: number;
   delayedCount: number;
   completedCount: number;
+  onHoldCount: number;
   bySector: Record<string, { count: number; value: number }>;
+  byNatureOfWork: Record<string, number>;
+  byInvoiceStatus: Record<string, number>;
   totalValue: number;
+  totalInvoiced: number;
 }
 
 export interface AgentResponse {
@@ -135,4 +175,3 @@ export type MondayPaginationResponse = MondayGraphQLResponse<{
     cursor: string | null;
   };
 }>;
-

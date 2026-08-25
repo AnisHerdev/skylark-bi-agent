@@ -4,18 +4,22 @@ import { parseDeals, parseWorkOrders } from "./normalizer";
 import {
   computePipelineMetrics,
   computeOperationalMetrics,
+  computeClientProfiles,
+  getHighRiskClients,
+  getTopClientsByValue,
   getDealsClosingThisQuarter,
   getDelayedWorkOrders,
   getStalledDeals,
   mergeDataQuality,
 } from "./analytics";
-import { Deal, WorkOrder, DataQualityReport } from "./types";
+import { Deal, WorkOrder, DataQualityReport, ClientProfile } from "./types";
 
 export interface AgentContext {
   deals: Deal[];
   workOrders: WorkOrder[];
   dealsQuality: DataQualityReport;
   workOrdersQuality: DataQualityReport;
+  clientProfiles: ClientProfile[];
 }
 
 export async function fetchAgentContext(): Promise<AgentContext> {
@@ -28,6 +32,7 @@ export async function fetchAgentContext(): Promise<AgentContext> {
     );
   }
 
+  // 100% Dynamic fetch from live Monday.com GraphQL endpoint
   const [dealsItems, workOrderItems] = await Promise.all([
     fetchMondayBoard(dealsBoardId),
     fetchMondayBoard(workOrdersBoardId),
@@ -36,27 +41,29 @@ export async function fetchAgentContext(): Promise<AgentContext> {
   const { deals, quality: dealsQuality } = parseDeals(dealsItems);
   const { workOrders, quality: workOrdersQuality } = parseWorkOrders(workOrderItems);
 
-  return { deals, workOrders, dealsQuality, workOrdersQuality };
+  const clientProfiles = computeClientProfiles(deals, workOrders);
+
+  return { deals, workOrders, dealsQuality, workOrdersQuality, clientProfiles };
 }
 
 export function buildSystemPrompt(): string {
-  return `You are Skylark BI Agent, an expert conversational AI business analyst. You connect directly to live business operations data from monday.com:
+  return `You are Skylark BI Agent, an elite AI conversational Business Intelligence Analyst for founders and executives. You have real-time live access to the company's monday.com boards:
 
-1. DEALS — Sales pipeline, deal values, stages, probability, sales owners, and expected close dates.
-2. WORK ORDERS — Project delivery, client work orders, start/end dates, delay statuses, and assigned teams.
+1. **DEALS (Sales Pipeline)**: Deal name, Client Code (COMPANY###), Owner Code (OWNER_###), Deal Stage, Deal Status (Open, Won, Dead, On Hold), Closure Probability, Masked Deal Value, Expected Close Date, and Sector.
+2. **WORK ORDERS (Project & Operational Delivery)**: Deal name masked, Customer Code (WOCOMPANY_###), Execution Status (Completed, Ongoing, Pause / struck, Not Started), PO Value (Excl GST), Total Invoiced, Invoice Status, Nature of Work, and Assigned Team.
 
-When answering founder or executive questions, adhere strictly to these principles:
-- **Direct Answer First**: Start immediately with a clear, concise answer to what was asked.
-- **Key Metrics & Data**: Highlight specific metrics, currency values (in Indian Rupees ₹ Cr/Lakhs), counts, and stages.
-- **Strategic Business Insights**: Explain what the data means (e.g., concentration risk, win-rate trends, delivery bottlenecks).
-- **Data Quality & Caveats**: Always report missing dates, unpopulated deal values, or assumptions made during calculation.
-- **Leadership Structure**: For leadership/executive summaries, structure as:
-  1. Executive Summary
-  2. Sales & Pipeline Performance
-  3. Operations & Delivery Health
-  4. Top Risks & Stalled Items
-  5. Recommended Action Items
-- **Truthful & Factual**: Never invent or hallucinate metrics. Rely strictly on the aggregated and granular data provided.
+### Analytical Guidelines:
+- **Direct Business Answer First**: Begin immediately with a concise, definitive answer.
+- **Client Discontinuation / Risk Advice**:
+  - When asked who the company should stop working with or which clients are risky, explicitly name the specific Client Codes (e.g. COMPANY_001, WOCOMPANY_002).
+  - Ground your advice in hard cross-board metrics: Dead deal churn rate, stalled/paused execution ('Pause / struck' work orders), zero win conversion, or severe unbilled/uncollected revenue balances.
+- **Financial Precision**: Format currency values in Indian Rupees (₹ Cr, ₹ Lakhs, or ₹K) with exact calculations.
+- **Sectors & Operations**: Detail key sectors (Mining, Powerline, Renewables, Railways, DSP, Pure Service) and highlight operational execution bottlenecks vs sales momentum.
+- **Structure for Executive Queries**:
+  1. **Direct Answer & Verdict**
+  2. **Key Financial & Operational Metrics**
+  3. **Strategic Business Insights & Risk Analysis**
+  4. **Data Quality & Governance Caveats**
 - Current Reference Date: ${new Date().toISOString().split("T")[0]}`;
 }
 
@@ -66,6 +73,8 @@ export function buildUserPrompt(question: string, ctx: AgentContext): string {
   const closingThisQuarter = getDealsClosingThisQuarter(ctx.deals);
   const delayedWOs = getDelayedWorkOrders(ctx.workOrders);
   const stalledDeals = getStalledDeals(ctx.deals);
+  const highRiskClients = getHighRiskClients(ctx.clientProfiles);
+  const topClients = getTopClientsByValue(ctx.clientProfiles, 5);
   const dataQualitySummary = mergeDataQuality(ctx.dealsQuality, ctx.workOrdersQuality);
 
   const closingQuarterValue = closingThisQuarter.reduce(
@@ -73,64 +82,101 @@ export function buildUserPrompt(question: string, ctx: AgentContext): string {
     0
   );
 
-  return `## Executive Question
+  return `## Founder Question
 ${question}
 
-## Pipeline Summary (Deals)
+## Pipeline Summary (Deals Board)
 - Total Active Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)}
-- Total Active Deals: ${pipelineMetrics.dealCount}
+- Total Deals Tracked: ${pipelineMetrics.dealCount}
 - Average Deal Size: ₹${formatCurrency(pipelineMetrics.avgDealSize)}
-- Deals Expected to Close This Quarter: ${closingThisQuarter.length} (Total Value: ₹${formatCurrency(closingQuarterValue)})
-- Records Missing Close Dates: ${pipelineMetrics.missingCloseDates}
-- Records Missing Deal Values: ${pipelineMetrics.missingValues}
+- Deals Expected to Close This Quarter: ${closingThisQuarter.length} (₹${formatCurrency(closingQuarterValue)})
+- Status Breakdown: ${Object.entries(pipelineMetrics.byStatus).map(([s, c]) => `${s}: ${c}`).join(", ")}
+- Missing Close Dates: ${pipelineMetrics.missingCloseDates}
+- Missing Deal Values: ${pipelineMetrics.missingValues}
 
-## Pipeline Breakdown by Stage
+## Pipeline by Stage
 ${Object.entries(pipelineMetrics.byStage)
-  .map(([stage, data]) => `- ${stage.toUpperCase()}: ${data.count} deals, ₹${formatCurrency(data.value)}`)
+  .map(([stage, data]) => `- ${stage.toUpperCase()}: ${data.count} deals | ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Pipeline Breakdown by Sector
+## Pipeline by Sector
 ${Object.entries(pipelineMetrics.bySector)
-  .map(([sector, data]) => `- ${sector}: ${data.count} deals, ₹${formatCurrency(data.value)}`)
+  .map(([sector, data]) => `- ${sector}: ${data.count} deals | ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Operational Execution Summary (Work Orders)
+## Pipeline by Sales Owner
+${Object.entries(pipelineMetrics.byOwner)
+  .map(([owner, data]) => `- ${owner}: ${data.count} deals | ₹${formatCurrency(data.value)}`)
+  .join("\n")}
+
+## Operational Execution Summary (Work Orders Board)
 - Total Work Orders: ${opsMetrics.totalWorkOrders}
-- Active / In-Progress: ${opsMetrics.activeCount}
-- Delayed / Overdue: ${opsMetrics.delayedCount}
+- Active / Ongoing: ${opsMetrics.activeCount}
 - Completed: ${opsMetrics.completedCount}
-- Total Work Order Value: ₹${formatCurrency(opsMetrics.totalValue)}
+- Paused / Struck ('Pause / struck'): ${opsMetrics.onHoldCount}
+- Delayed: ${opsMetrics.delayedCount}
+- Total PO Contract Value: ₹${formatCurrency(opsMetrics.totalValue)}
+- Total Invoiced Amount: ₹${formatCurrency(opsMetrics.totalInvoiced)}
 
-## Operations Breakdown by Sector
+## Operations by Sector
 ${Object.entries(opsMetrics.bySector)
-  .map(([sector, data]) => `- ${sector}: ${data.count} orders, ₹${formatCurrency(data.value)}`)
+  .map(([sector, data]) => `- ${sector}: ${data.count} orders | PO Value: ₹${formatCurrency(data.value)}`)
   .join("\n")}
 
-## Stalled Deals (>30 days old without progress)
+## Operations by Nature of Work
+${Object.entries(opsMetrics.byNatureOfWork)
+  .map(([nature, count]) => `- ${nature}: ${count} orders`)
+  .join("\n")}
+
+## Operations by Invoice Status
+${Object.entries(opsMetrics.byInvoiceStatus)
+  .map(([status, count]) => `- ${status}: ${count} orders`)
+  .join("\n")}
+
+## Client Intelligence: High-Risk Clients (Candidates to Discontinue or Renegotiate)
 ${
-  stalledDeals.length > 0
-    ? stalledDeals
+  highRiskClients.length > 0
+    ? highRiskClients
+        .slice(0, 10)
         .map(
-          (d) =>
-            `- ${d.name} | Client: ${d.client} | Sector: ${d.sector} | Value: ₹${formatCurrency(d.value ?? 0)} | Stage: ${d.stage} | Owner: ${d.salesOwner}`
+          (c) =>
+            `- **${c.clientCode}** (${c.sectors.join(", ")} | Owner: ${c.owners.join(", ")}) — Risk Score: ${c.riskScore}/100
+  * Deals: ${c.dealCount} total (${c.wonDealCount} Won, ${c.deadDealCount} Dead, ${c.openDealCount} Open | Win Rate: ${c.winRate.toFixed(0)}%, Dead Rate: ${c.deadRate.toFixed(0)}%)
+  * Work Orders: ${c.workOrderCount} total (${c.activeWorkOrderCount} Active, ${c.pausedWorkOrderCount} Paused/Struck, ${c.completedWorkOrderCount} Completed)
+  * Financials: Pipeline ₹${formatCurrency(c.totalPipelineValue)} | PO Value ₹${formatCurrency(c.totalProjectValue)} | Invoiced ₹${formatCurrency(c.totalInvoicedValue)}
+  * Risk Flags: ${c.riskReasons.join("; ")}`
         )
-        .join("\n")
-    : "None identified."
+        .join("\n\n")
+    : "No high-risk clients identified."
 }
 
-## Delayed Work Orders (At Risk)
-${
-  delayedWOs.length > 0
-    ? delayedWOs
-        .map(
-          (w) =>
-            `- ${w.name} | Customer: ${w.customer} | Sector: ${w.sector} | Team: ${w.assignedTeam} | Status: ${w.status}`
-        )
-        .join("\n")
-    : "None identified."
-}
+## Client Intelligence: Top Value Clients
+${topClients
+  .map(
+    (c) =>
+      `- **${c.clientCode}** (${c.sectors.join(", ")}) — Total Value: ₹${formatCurrency(c.totalProjectValue + c.totalPipelineValue)} (PO Value: ₹${formatCurrency(c.totalProjectValue)}, Pipeline: ₹${formatCurrency(c.totalPipelineValue)}, Won Deals: ${c.wonDealCount})`
+  )
+  .join("\n")}
 
-## Data Cleaning & Quality Audit
+## Stalled Deals & Delayed Work Orders
+- Stalled Deals (>30d or low probability): ${
+    stalledDeals.length > 0
+      ? stalledDeals
+          .slice(0, 8)
+          .map((d) => `${d.name} (${d.clientCode}, ${d.sector}, ₹${formatCurrency(d.value ?? 0)}, Stage: ${d.stage})`)
+          .join("; ")
+      : "None"
+  }
+- Paused / Struck Work Orders: ${
+    delayedWOs.length > 0
+      ? delayedWOs
+          .slice(0, 8)
+          .map((w) => `${w.name} (${w.customerCode}, ${w.sector}, Status: ${w.status}, Value: ₹${formatCurrency(w.value ?? 0)})`)
+          .join("; ")
+      : "None"
+  }
+
+## Data Quality & Cleansing Report
 ${dataQualitySummary}
 `;
 }
@@ -146,7 +192,7 @@ export async function generateGeminiResponse(
     );
   }
 
-  const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const model = genAI.getGenerativeModel({
@@ -154,7 +200,7 @@ export async function generateGeminiResponse(
     systemInstruction: buildSystemPrompt(),
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 2500,
+      maxOutputTokens: 3000,
     },
   });
 
