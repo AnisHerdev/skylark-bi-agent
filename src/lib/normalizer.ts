@@ -19,49 +19,133 @@ const DATE_FORMATS = [
   "DD MMMM YYYY",
   "YYYY/MM/DD",
   "DD.MM.YYYY",
+  "DD-MMM-YY",
+  "DD-MMM-YYYY",
+  "DD/MMM/YY",
+  "DD/MMM/YYYY",
+  "D-MMM-YY",
+  "D-MMM-YYYY",
+  "D/M/YYYY",
+  "M/D/YYYY",
+  "D-M-YYYY",
+  "M-D-YYYY",
+  "MMM-YY",
+  "MMM-YYYY",
+  "MMM YYYY",
+  "MMMM YYYY",
+  "YYYY-MM",
+  "MM/YYYY",
   "YYYY-MM-DDTHH:mm:ss",
   "YYYY-MM-DDTHH:mm:ss.SSSZ",
 ];
 
 const SECTOR_ALIASES: Record<string, string> = {
+  // 1. Mining
   mining: "mining",
   "mining sector": "mining",
+  mines: "mining",
+  mineral: "mining",
+  minerals: "mining",
+
+  // 2. Powerline
   powerline: "powerline",
   powerlines: "powerline",
   "power line": "powerline",
+  "power lines": "powerline",
+  transmission: "powerline",
+  "t&d": "powerline",
+  substation: "powerline",
+
+  // 3. Renewables
   renewables: "renewables",
   renewable: "renewables",
   solar: "renewables",
   wind: "renewables",
+  "clean energy": "renewables",
+  "green energy": "renewables",
+
+  // 4. Railways
   railways: "railways",
   railway: "railways",
+  rail: "railways",
+  metro: "railways",
+  dfccil: "railways",
+
+  // 5. DSP
   dsp: "dsp",
+  "digital surface": "dsp",
+  "dsp service": "dsp",
+  "dsp project": "dsp",
+
+  // 6. Pure Service
   "pure service": "pure_service",
   pureservice: "pure_service",
+  pure_service: "pure_service",
+  service: "pure_service",
+  services: "pure_service",
+  survey: "pure_service",
+  surveillance: "pure_service",
+  gis: "pure_service",
+  mapping: "pure_service",
+  inspection: "pure_service",
+  consulting: "pure_service",
+
+  // 7. Tender
   tender: "tender",
+  tenders: "tender",
+  "govt tender": "tender",
+  "government tender": "tender",
+  rfp: "tender",
+
+  // 8. Spectra
   spectra: "spectra",
-  construction: "construction",
+  spectral: "spectra",
+  hyperspectral: "spectra",
+
+  // 9. Others / Generic mappings
   energy: "energy",
   "energy sector": "energy",
-  "energy industry": "energy",
-  manufacturing: "manufacturing",
-  mfg: "manufacturing",
-  technology: "technology",
-  tech: "technology",
-  infrastructure: "infrastructure",
-  infra: "infrastructure",
-  telecom: "telecom",
+  construction: "others",
+  manufacturing: "others",
+  mfg: "others",
+  technology: "others",
+  tech: "others",
+  infrastructure: "others",
+  infra: "others",
+  telecom: "others",
   others: "others",
   other: "others",
+  general: "others",
 };
 
-export function parseDate(value: string | null | undefined): Date | null {
-  if (!value || typeof value !== "string" || value.trim() === "") return null;
+export function parseDate(value: string | number | null | undefined): Date | null {
+  if (value === null || value === undefined) return null;
 
-  const cleaned = value.trim();
-  if (cleaned.toLowerCase() === "n/a" || cleaned.toLowerCase() === "null" || cleaned === "-") {
+  // Handle Excel Serial dates (e.g. 44927, 45529)
+  if (typeof value === "number" || (!isNaN(Number(value)) && String(value).trim().length === 5)) {
+    const num = Number(value);
+    if (num > 30000 && num < 60000) {
+      // Excel epoch starts Dec 30 1899
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const jsDate = new Date(excelEpoch.getTime() + num * 86400000);
+      if (!isNaN(jsDate.getTime())) return jsDate;
+    }
+  }
+
+  if (typeof value !== "string" || value.trim() === "") return null;
+
+  let cleaned = value.trim();
+  if (
+    cleaned.toLowerCase() === "n/a" ||
+    cleaned.toLowerCase() === "null" ||
+    cleaned.toLowerCase() === "undefined" ||
+    cleaned === "-"
+  ) {
     return null;
   }
+
+  // Remove ordinal suffixes (1st, 2nd, 3rd, 4th -> 1, 2, 3, 4)
+  cleaned = cleaned.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
 
   const iso = dayjs(cleaned, "YYYY-MM-DD", true);
   if (iso.isValid()) return iso.toDate();
@@ -82,7 +166,16 @@ export function parseDate(value: string | null | undefined): Date | null {
 export function normalizeSector(value: string | null | undefined): string {
   if (!value || typeof value !== "string" || value.trim() === "") return "others";
   const cleaned = value.trim().toLowerCase();
-  return SECTOR_ALIASES[cleaned] || cleaned.replace(/\s+/g, "_");
+  if (SECTOR_ALIASES[cleaned]) return SECTOR_ALIASES[cleaned];
+
+  // Check if any alias key is a substring
+  for (const [key, normalized] of Object.entries(SECTOR_ALIASES)) {
+    if (cleaned.includes(key)) {
+      return normalized;
+    }
+  }
+
+  return "others";
 }
 
 export function normalizeProbability(value: string | null | undefined): number | null {
@@ -115,13 +208,13 @@ export function normalizeStage(stageRaw: string | null | undefined, statusRaw?: 
   if (clean.includes("project won") || clean.includes("closed won") || clean.includes("won")) {
     return "closed_won";
   }
-  if (clean.includes("negotiat") || clean.includes("contract") || clean.includes("amount accrued")) {
+  if (clean.includes("negotiat") || clean.includes("contract") || clean.includes("amount accrued") || clean.includes("agreement")) {
     return "negotiation";
   }
-  if (clean.includes("proposal") || clean.includes("poc") || clean.includes("quote") || clean.includes("pitch")) {
+  if (clean.includes("proposal") || clean.includes("poc") || clean.includes("quote") || clean.includes("pitch") || clean.includes("rfp") || clean.includes("submitted")) {
     return "proposal";
   }
-  if (clean.includes("qualif") || clean.includes("requirement") || clean.includes("demo")) {
+  if (clean.includes("qualif") || clean.includes("requirement") || clean.includes("demo") || clean.includes("meeting") || clean.includes("scop")) {
     return "qualification";
   }
   if (clean.includes("lead") || clean.startsWith("1.") || clean.startsWith("2.")) {
@@ -135,7 +228,7 @@ export function normalizeExecutionStatus(value: string | null | undefined): Work
   if (!value || typeof value !== "string" || value.trim() === "") return "not_started";
   const clean = value.trim().toLowerCase();
 
-  if (clean.includes("pause") || clean.includes("struck") || clean.includes("hold")) {
+  if (clean.includes("pause") || clean.includes("struck") || clean.includes("stuck") || clean.includes("hold")) {
     return "on_hold";
   }
   if (clean.includes("complete") || clean.includes("done") || clean.includes("finish") || clean.includes("closed")) {
@@ -263,9 +356,31 @@ export function parseDeals(items: MondayItem[]): {
 
   for (const item of items) {
     const name = item.name?.trim() || "";
-    const clientCodeRaw = getColumnValue(item, ["Client Code", "Client", "Customer", "Company Code", "Customer Name Code"]);
-    const valueRaw = getColumnValue(item, ["Masked Deal value", "Deal Value", "Value", "Amount", "Deal value"]);
-    const sectorRaw = getColumnValue(item, ["Sector/service", "Sector", "Industry", "Product deal"]);
+    const clientCodeRaw = getColumnValue(item, [
+      "Client Code",
+      "Client",
+      "Customer",
+      "Company Code",
+      "Customer Name Code",
+      "Customer Code",
+    ]);
+    const valueRaw = getColumnValue(item, [
+      "Masked Deal value",
+      "Deal Value",
+      "Deal Value Masked",
+      "Deal value",
+      "Value",
+      "Amount",
+      "Masked Deal Value (INR)",
+      "Deal Value in INR",
+      "Amount in Rupees",
+    ]);
+    const sectorRaw = getColumnValue(item, [
+      "Sector/service",
+      "Sector",
+      "Industry",
+      "Sector / Service",
+    ]);
 
     // Filter out accidental duplicate header rows (e.g. rows 52 & 181)
     if (isHeaderRow(name, [clientCodeRaw, valueRaw, sectorRaw])) {
@@ -275,9 +390,26 @@ export function parseDeals(items: MondayItem[]): {
 
     const clientCode = clientCodeRaw || name || "UNKNOWN_COMPANY";
     const client = clientCode;
-    const ownerCode = getColumnValue(item, ["Owner code", "Owner", "Sales Owner", "BD Owner", "BD/KAM Personnel code"]) || "UNASSIGNED";
-    const dealStatus = getColumnValue(item, ["Deal Status", "Status"]) || "Open";
-    const productDeal = getColumnValue(item, ["Product deal", "Product", "Service", "Type of Work"]) || "General";
+    const ownerCode =
+      getColumnValue(item, [
+        "Owner code",
+        "Owner",
+        "Sales Owner",
+        "BD Owner",
+        "BD/KAM Personnel code",
+        "Deal Owner",
+      ]) || "UNASSIGNED";
+    const dealStatus =
+      getColumnValue(item, ["Deal Status", "Status", "Stage Status", "State"]) ||
+      "Open";
+    const productDeal =
+      getColumnValue(item, [
+        "Product deal",
+        "Product",
+        "Service",
+        "Type of Work",
+        "Nature of Work",
+      ]) || "General";
 
     const sector = normalizeSector(sectorRaw);
     if (sectorRaw && sectorRaw.trim().toLowerCase() !== sector) {
@@ -296,20 +428,37 @@ export function parseDeals(items: MondayItem[]): {
       "Expected Close Date",
       "Close Date",
       "Closing Date",
+      "Target Close Date",
+      "Month of Closure",
+      "Target Date",
     ]);
     const expectedCloseDate = parseDate(closeDateRaw);
     if (closeDateRaw && expectedCloseDate === null) invalidDates++;
     if (!closeDateRaw || closeDateRaw.trim() === "") {
-      missingFields["Expected Close Date"] = (missingFields["Expected Close Date"] || 0) + 1;
+      missingFields["Expected Close Date"] =
+        (missingFields["Expected Close Date"] || 0) + 1;
     }
 
-    const stageRaw = getColumnValue(item, ["Deal Stage", "Stage", "Pipeline Stage"]);
+    const stageRaw = getColumnValue(item, [
+      "Deal Stage",
+      "Stage",
+      "Pipeline Stage",
+    ]);
     const stage = normalizeStage(stageRaw, dealStatus);
 
-    const probRaw = getColumnValue(item, ["Closure Probability", "Probability", "Chance"]);
+    const probRaw = getColumnValue(item, [
+      "Closure Probability",
+      "Probability",
+      "Chance",
+      "Confidence",
+    ]);
     const probability = normalizeProbability(probRaw);
 
-    const createdDateRaw = getColumnValue(item, ["Created Date", "Date Created"]);
+    const createdDateRaw = getColumnValue(item, [
+      "Created Date",
+      "Date Created",
+      "Created At",
+    ]);
     const createdAt = parseDate(createdDateRaw) || parseDate(item.created_at);
 
     deals.push({
@@ -373,19 +522,33 @@ export function parseWorkOrders(items: MondayItem[]): {
     ]);
     const dealNameMaskedRaw = getColumnValue(item, [
       "Deal name masked",
+      "Deal Name Masked",
       "Deal Name",
       "Deal Code",
+      "Deal #",
+      "Deal ID",
       "Serial #",
     ]);
     const poValueRaw = getColumnValue(item, [
+      "Amount in Rupees (Excl GST)",
+      "Amount in Rupees",
+      "Amount in Rs.",
+      "Amount in Rupees (Incl GST)",
       "PO Value (Excl GST)",
       "PO Value",
       "Project Value (Excl GST)",
       "Project Value",
+      "Total PO Value",
       "Value",
       "Total Amount",
+      "Contract Value",
     ]);
-    const sectorRaw = getColumnValue(item, ["Sector", "Sector/service", "Industry"]);
+    const sectorRaw = getColumnValue(item, [
+      "Sector",
+      "Sector/service",
+      "Sector / Service",
+      "Industry",
+    ]);
 
     // Filter out accidental duplicate header rows
     if (isHeaderRow(name, [customerCodeRaw, dealNameMaskedRaw, poValueRaw])) {
@@ -399,10 +562,23 @@ export function parseWorkOrders(items: MondayItem[]): {
       customerCodeRaw.trim().toUpperCase() === "NULL" ||
       customerCodeRaw.trim().toUpperCase() === "SPECTRA";
 
-    const customerCode = !isInvalidCustomerCode ? customerCodeRaw : (name || "UNKNOWN_WO_CUSTOMER");
+    const customerCode = !isInvalidCustomerCode
+      ? customerCodeRaw
+      : name || "UNKNOWN_WO_CUSTOMER";
     const dealNameMasked = dealNameMaskedRaw || name;
-    const natureOfWork = getColumnValue(item, ["Nature of Work", "Contract Type", "Type"]) || "Project";
-    const executionStatusRaw = getColumnValue(item, ["Execution Status", "Status", "Work Status"]);
+    const natureOfWork =
+      getColumnValue(item, [
+        "Nature of Work",
+        "Contract Type",
+        "Type of Work",
+        "Type",
+      ]) || "Project";
+    const executionStatusRaw = getColumnValue(item, [
+      "Execution Status",
+      "Status",
+      "Work Status",
+      "Project Status",
+    ]);
     const status = normalizeExecutionStatus(executionStatusRaw);
 
     const sector = normalizeSector(sectorRaw);
@@ -417,24 +593,33 @@ export function parseWorkOrders(items: MondayItem[]): {
     }
 
     const invoicedRaw = getColumnValue(item, [
+      "Billed Value (Excl GST)",
+      "Billed Value",
+      "Billed Value (Incl GST)",
       "Total Invoiced (Excl GST)",
       "Total Invoiced",
       "Invoiced Amount",
       "Billed Amount",
+      "Total Billed",
+      "Collected Amount",
     ]);
     const totalInvoiced = parseNumber(invoicedRaw);
 
-    const invoiceStatus = getColumnValue(item, [
-      "Invoice Status",
-      "Billing Status",
-      "Invoice",
-    ]) || "Unknown";
+    const invoiceStatus =
+      getColumnValue(item, [
+        "Invoice Status",
+        "Billing Status",
+        "Invoice",
+        "Billed Status",
+      ]) || "Unknown";
 
     const startDateRaw = getColumnValue(item, [
       "Probable Start/End Date",
       "Probable Start Date",
       "Start Date",
       "Date of PO/LOI",
+      "PO Date",
+      "Start",
     ]);
     const startDate = parseDate(startDateRaw);
     if (startDateRaw && startDate === null) invalidDates++;
@@ -444,27 +629,36 @@ export function parseWorkOrders(items: MondayItem[]): {
       "Probable End Date",
       "End Date",
       "Completion Date",
+      "Delivery Date",
+      "End",
     ]);
     const endDate = parseDate(endDateRaw);
     if (endDateRaw && endDate === null) invalidDates++;
 
-    const completionRaw = getColumnValue(item, ["Completion", "% Complete", "Progress"]);
+    const completionRaw = getColumnValue(item, [
+      "Completion",
+      "% Complete",
+      "Progress",
+    ]);
     const completionPercent = parseNumber(completionRaw);
 
-    const ownerCode = getColumnValue(item, [
-      "BD/KAM Personnel code",
-      "Owner code",
-      "Owner",
-      "KAM",
-      "Assigned Team",
-    ]) || "UNASSIGNED";
+    const ownerCode =
+      getColumnValue(item, [
+        "BD/KAM Personnel code",
+        "Owner code",
+        "Owner",
+        "KAM",
+        "Assigned Team",
+        "Project Lead",
+      ]) || "UNASSIGNED";
 
-    const assignedTeam = getColumnValue(item, [
-      "Assigned Team",
-      "Team",
-      "Ops Team",
-      "Resource",
-    ]) || ownerCode;
+    const assignedTeam =
+      getColumnValue(item, [
+        "Assigned Team",
+        "Team",
+        "Ops Team",
+        "Resource",
+      ]) || ownerCode;
 
     workOrders.push({
       id: item.id,

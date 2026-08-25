@@ -15,9 +15,30 @@ dayjs.extend(quarterOfYear);
 dayjs.extend(isBetween);
 
 export function computePipelineMetrics(deals: Deal[]): PipelineMetrics {
-  const activeDeals = deals.filter((d) => d.stage !== "closed_lost");
+  // Only Open / In-flight deals count as Active Pipeline
+  const activeDeals = deals.filter(
+    (d) =>
+      d.dealStatus?.toLowerCase() !== "dead" &&
+      d.dealStatus?.toLowerCase() !== "won" &&
+      d.dealStatus?.toLowerCase() !== "lost" &&
+      d.stage !== "closed_lost" &&
+      d.stage !== "closed_won"
+  );
+
+  const wonDeals = deals.filter(
+    (d) => d.dealStatus?.toLowerCase() === "won" || d.stage === "closed_won"
+  );
+
+  const deadDeals = deals.filter(
+    (d) =>
+      d.dealStatus?.toLowerCase() === "dead" ||
+      d.dealStatus?.toLowerCase() === "lost" ||
+      d.stage === "closed_lost"
+  );
 
   const totalValue = activeDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+  const wonValue = wonDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+
   const dealsWithValues = activeDeals.filter((d) => d.value !== null && d.value > 0);
   const avgDealSize = dealsWithValues.length > 0 ? totalValue / dealsWithValues.length : 0;
 
@@ -36,7 +57,7 @@ export function computePipelineMetrics(deals: Deal[]): PipelineMetrics {
     byStage[stage].count++;
     byStage[stage].value += deal.value ?? 0;
 
-    // Sector breakdown
+    // Sector breakdown (for active in-flight deals)
     const sector = deal.sector;
     if (!bySector[sector]) bySector[sector] = { count: 0, value: 0 };
     bySector[sector].count++;
@@ -63,6 +84,10 @@ export function computePipelineMetrics(deals: Deal[]): PipelineMetrics {
   return {
     totalValue,
     dealCount: deals.length,
+    activeDealCount: activeDeals.length,
+    wonDealCount: wonDeals.length,
+    wonValue,
+    deadDealCount: deadDeals.length,
     avgDealSize,
     byStage,
     bySector,
@@ -85,11 +110,23 @@ export function computeOperationalMetrics(workOrders: WorkOrder[]): OperationalM
   let totalValue = 0;
   let totalInvoiced = 0;
 
+  const now = dayjs();
+
   for (const wo of workOrders) {
-    if (wo.status === "in_progress") activeCount++;
-    else if (wo.status === "delayed") delayedCount++;
-    else if (wo.status === "completed") completedCount++;
-    else if (wo.status === "on_hold") onHoldCount++;
+    if (wo.status === "in_progress") {
+      // If delivery date has passed and still in progress, count as delayed
+      if (wo.endDate && dayjs(wo.endDate).isBefore(now, "day")) {
+        delayedCount++;
+      } else {
+        activeCount++;
+      }
+    } else if (wo.status === "delayed") {
+      delayedCount++;
+    } else if (wo.status === "completed") {
+      completedCount++;
+    } else if (wo.status === "on_hold") {
+      onHoldCount++;
+    }
 
     totalValue += wo.value ?? 0;
     totalInvoiced += wo.totalInvoiced ?? 0;
@@ -123,29 +160,30 @@ export function computeOperationalMetrics(workOrders: WorkOrder[]): OperationalM
   };
 }
 
-export function normalizeCompanyCode(code: string): string {
-  if (!code) return "UNKNOWN";
+export function normalizeCompanyCode(code: string | null | undefined): string {
+  if (!code || typeof code !== "string") return "UNKNOWN";
   const clean = code.trim().toUpperCase();
   if (
+    clean === "" ||
     clean === "NONE" ||
     clean === "NULL" ||
     clean === "N/A" ||
+    clean === "UNDEFINED" ||
     clean === "-" ||
     clean === "SPECTRA"
   ) {
     return "UNKNOWN";
   }
 
-  // Strip WOCOMPANY_ or COMPANY_ or COMPANY prefixes to get numeric ID (e.g. WOCOMPANY_001 -> COMPANY_001)
-  const numMatch = clean.match(/(?:WOCOMPANY|COMPANY|WO_COMPANY|CUST)[_]?(\d+)/i);
-  if (numMatch) {
-    return `COMPANY_${numMatch[1].padStart(3, "0")}`;
+  // Reject Deal IDs from becoming Client Codes
+  if (clean.startsWith("SDPLDEAL") || clean.startsWith("SDPL_") || clean.startsWith("DEAL_")) {
+    return "UNKNOWN";
   }
 
-  // Match SDPLDEAL-###
-  const sdplMatch = clean.match(/(?:SDPLDEAL)[-_]?(\d+)/i);
-  if (sdplMatch) {
-    return `SDPLDEAL_${sdplMatch[1].padStart(3, "0")}`;
+  // Strip WOCOMPANY_ or COMPANY_ or COMPANY prefixes to get numeric ID (e.g. WOCOMPANY_001 -> COMPANY_001)
+  const numMatch = clean.match(/(?:WOCOMPANY|COMPANY|WO_COMPANY|CUST)[_\s-]?(\d+)/i);
+  if (numMatch) {
+    return `COMPANY_${numMatch[1].padStart(3, "0")}`;
   }
 
   return clean;
@@ -162,6 +200,23 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
     }
   > = {};
 
+  // Build Deal ID -> Client Code mapping for robust cross-board resolution
+  const dealToClientMap = new Map<string, string>();
+  for (const deal of deals) {
+    const rawCode = deal.clientCode || deal.name;
+    const norm = normalizeCompanyCode(rawCode);
+    if (norm !== "UNKNOWN") {
+      if (deal.name) dealToClientMap.set(deal.name.toLowerCase().trim(), norm);
+      if (deal.id) dealToClientMap.set(deal.id.toLowerCase().trim(), norm);
+      if (deal.rawData["Deal name masked"]) {
+        dealToClientMap.set(String(deal.rawData["Deal name masked"]).toLowerCase().trim(), norm);
+      }
+      if (deal.rawData["Serial #"]) {
+        dealToClientMap.set(String(deal.rawData["Serial #"]).toLowerCase().trim(), norm);
+      }
+    }
+  }
+
   // Group deals by normalized company code
   for (const deal of deals) {
     const rawCode = deal.clientCode || deal.name;
@@ -170,7 +225,7 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
 
     if (!clientMap[norm]) {
       clientMap[norm] = {
-        primaryCode: rawCode,
+        primaryCode: norm,
         normalizedCode: norm,
         deals: [],
         workOrders: [],
@@ -179,15 +234,20 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
     clientMap[norm].deals.push(deal);
   }
 
-  // Group work orders by normalized company code
+  // Group work orders by normalized company code, resolving via deal linkage if necessary
   for (const wo of workOrders) {
-    const rawCode = wo.customerCode || wo.name;
-    const norm = normalizeCompanyCode(rawCode);
+    let norm = normalizeCompanyCode(wo.customerCode);
+    if (norm === "UNKNOWN" && wo.dealNameMasked) {
+      norm = dealToClientMap.get(wo.dealNameMasked.toLowerCase().trim()) || "UNKNOWN";
+    }
+    if (norm === "UNKNOWN" && wo.name) {
+      norm = dealToClientMap.get(wo.name.toLowerCase().trim()) || "UNKNOWN";
+    }
     if (norm === "UNKNOWN") continue;
 
     if (!clientMap[norm]) {
       clientMap[norm] = {
-        primaryCode: rawCode,
+        primaryCode: norm,
         normalizedCode: norm,
         deals: [],
         workOrders: [],
@@ -205,13 +265,13 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
     const dealCount = dList.length;
     const wonDeals = dList.filter((d) => d.stage === "closed_won" || d.dealStatus?.toLowerCase() === "won");
     const deadDeals = dList.filter((d) => d.stage === "closed_lost" || d.dealStatus?.toLowerCase() === "dead");
-    const openDeals = dList.filter((d) => d.stage !== "closed_won" && d.stage !== "closed_lost");
+    const openDeals = dList.filter((d) => d.stage !== "closed_won" && d.stage !== "closed_lost" && d.dealStatus?.toLowerCase() !== "dead");
 
     const wonDealCount = wonDeals.length;
     const deadDealCount = deadDeals.length;
     const openDealCount = openDeals.length;
 
-    const totalPipelineValue = dList.reduce((sum, d) => sum + (d.value ?? 0), 0);
+    const totalPipelineValue = openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
     const wonValue = wonDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
 
     const winRate = dealCount > 0 ? (wonDealCount / dealCount) * 100 : 0;
@@ -310,6 +370,14 @@ export function getDealsClosingThisQuarter(deals: Deal[]): Deal[] {
   const endOfQ = now.endOf("quarter");
 
   return deals.filter((deal) => {
+    if (
+      deal.dealStatus?.toLowerCase() === "dead" ||
+      deal.dealStatus?.toLowerCase() === "lost" ||
+      deal.stage === "closed_lost" ||
+      deal.stage === "closed_won"
+    ) {
+      return false;
+    }
     if (!deal.expectedCloseDate) return false;
     const close = dayjs(deal.expectedCloseDate);
     return close.isBetween(startOfQ, endOfQ, "day", "[]");
@@ -317,7 +385,14 @@ export function getDealsClosingThisQuarter(deals: Deal[]): Deal[] {
 }
 
 export function getDelayedWorkOrders(workOrders: WorkOrder[]): WorkOrder[] {
-  return workOrders.filter((w) => w.status === "delayed" || w.status === "on_hold");
+  const now = dayjs();
+  return workOrders.filter((w) => {
+    if (w.status === "delayed" || w.status === "on_hold") return true;
+    if (w.status === "in_progress" && w.endDate) {
+      return dayjs(w.endDate).isBefore(now, "day");
+    }
+    return false;
+  });
 }
 
 export function getStalledDeals(deals: Deal[]): Deal[] {

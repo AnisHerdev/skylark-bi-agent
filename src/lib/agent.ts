@@ -97,10 +97,10 @@ export function buildUserPrompt(question: string, ctx: AgentContext): string {
 ${question}
 
 ## Pipeline Summary (Deals Board)
-- Total Active Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)}
-- Total Deals Tracked: ${pipelineMetrics.dealCount}
-- Average Deal Size: ₹${formatCurrency(pipelineMetrics.avgDealSize)}
-- Deals Expected to Close This Quarter: ${closingThisQuarter.length} (₹${formatCurrency(closingQuarterValue)})
+- Total Active Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)} across ${pipelineMetrics.activeDealCount} open deals
+- Total Deals Tracked: ${pipelineMetrics.dealCount} (${pipelineMetrics.wonDealCount} Won [₹${formatCurrency(pipelineMetrics.wonValue)}], ${pipelineMetrics.deadDealCount} Dead, ${pipelineMetrics.activeDealCount} Open)
+- Average Active Deal Size: ₹${formatCurrency(pipelineMetrics.avgDealSize)}
+- Open Deals Expected to Close This Quarter: ${closingThisQuarter.length} (₹${formatCurrency(closingQuarterValue)})
 - Status Breakdown: ${Object.entries(pipelineMetrics.byStatus).map(([s, c]) => `${s}: ${c}`).join(", ")}
 - Missing Close Dates: ${pipelineMetrics.missingCloseDates}
 - Missing Deal Values: ${pipelineMetrics.missingValues}
@@ -128,6 +128,7 @@ ${Object.entries(pipelineMetrics.byOwner)
 - Delayed: ${opsMetrics.delayedCount}
 - Total PO Contract Value: ₹${formatCurrency(opsMetrics.totalValue)}
 - Total Invoiced Amount: ₹${formatCurrency(opsMetrics.totalInvoiced)}
+- Total Unbilled PO Balance: ₹${formatCurrency(Math.max(0, opsMetrics.totalValue - opsMetrics.totalInvoiced))}
 
 ## Operations by Sector
 ${Object.entries(opsMetrics.bySector)
@@ -154,7 +155,7 @@ ${
             `- **${c.clientCode}** (${c.sectors.join(", ")} | Owner: ${c.owners.join(", ")}) — Risk Score: ${c.riskScore}/100
   * Deals: ${c.dealCount} total (${c.wonDealCount} Won, ${c.deadDealCount} Dead, ${c.openDealCount} Open | Win Rate: ${c.winRate.toFixed(0)}%, Dead Rate: ${c.deadRate.toFixed(0)}%)
   * Work Orders: ${c.workOrderCount} total (${c.activeWorkOrderCount} Active, ${c.pausedWorkOrderCount} Paused/Struck, ${c.completedWorkOrderCount} Completed)
-  * Financials: Pipeline ₹${formatCurrency(c.totalPipelineValue)} | PO Value ₹${formatCurrency(c.totalProjectValue)} | Invoiced ₹${formatCurrency(c.totalInvoicedValue)}
+  * Financials: Active Pipeline ₹${formatCurrency(c.totalPipelineValue)} | Won Deals ₹${formatCurrency(c.wonValue)} | PO Value ₹${formatCurrency(c.totalProjectValue)} | Invoiced ₹${formatCurrency(c.totalInvoicedValue)}
   * Risk Flags: ${c.riskReasons.join("; ")}`
         )
         .join("\n\n")
@@ -266,23 +267,39 @@ export async function generateDashboardInsights(
   const delayedWOs = getDelayedWorkOrders(ctx.workOrders);
   const stalledDeals = getStalledDeals(ctx.deals);
 
+  const closingQuarterValue = closingThisQuarter.reduce(
+    (sum, d) => sum + (d.value ?? 0),
+    0
+  );
+
+  const totalUnbilled = Math.max(0, opsMetrics.totalValue - opsMetrics.totalInvoiced);
+
   const fallbackInsights: import("./types").DashboardInsight = {
-    headline: `Active Pipeline at ₹${formatCurrency(pipelineMetrics.totalValue)} with ₹${formatCurrency(opsMetrics.totalValue)} in Active PO Contracts`,
+    headline: `Active Pipeline at ₹${formatCurrency(pipelineMetrics.totalValue)} across ${pipelineMetrics.activeDealCount} Open Deals (${pipelineMetrics.dealCount} Total Tracked)`,
     takeaways: [
-      `${pipelineMetrics.dealCount} active opportunities tracked across ${Object.keys(pipelineMetrics.bySector).length} sectors.`,
-      `₹${formatCurrency(opsMetrics.totalInvoiced)} invoiced out of ₹${formatCurrency(opsMetrics.totalValue)} total PO contract execution.`,
-      `${closingThisQuarter.length} deal(s) scheduled for closure this quarter.`,
+      `${pipelineMetrics.activeDealCount} active opportunities (₹${formatCurrency(pipelineMetrics.totalValue)}) across ${Object.keys(pipelineMetrics.bySector).length} sectors (${pipelineMetrics.wonDealCount} deals won).`,
+      `₹${formatCurrency(opsMetrics.totalInvoiced)} invoiced out of ₹${formatCurrency(opsMetrics.totalValue)} total PO contract execution (₹${formatCurrency(totalUnbilled)} unbilled balance).`,
+      `${closingThisQuarter.length} open deal(s) scheduled for closure this quarter (₹${formatCurrency(closingQuarterValue)}).`,
     ],
     riskAlerts: [
-      delayedWOs.length > 0 ? `${delayedWOs.length} work order(s) currently paused or delayed in execution.` : "Operations on schedule.",
-      highRiskClients.length > 0 ? `${highRiskClients.length} high-risk client account(s) flagged due to paused orders or dead conversion rates.` : "No critical client risk flags.",
-      stalledDeals.length > 0 ? `${stalledDeals.length} stalled deal(s) requiring sales pipeline follow-up.` : "Pipeline velocity is healthy.",
+      delayedWOs.length > 0
+        ? `${delayedWOs.length} work order(s) currently paused or delayed in delivery.`
+        : "Operations delivery on schedule.",
+      highRiskClients.length > 0
+        ? `${highRiskClients.length} high-risk client account(s) flagged (e.g. ${highRiskClients[0]?.clientCode} with risk score ${highRiskClients[0]?.riskScore}/100).`
+        : "No critical client risk flags.",
+      stalledDeals.length > 0
+        ? `${stalledDeals.length} stalled open deal(s) requiring sales pipeline follow-up.`
+        : "Pipeline velocity is healthy.",
     ],
     proactiveQuestions: [
       {
         id: "q-risk-clients",
         title: "At-Risk Account Review",
-        anomaly: highRiskClients.length > 0 ? `${highRiskClients[0]?.clientCode} has a risk score of ${highRiskClients[0]?.riskScore}/100 with stalled execution` : "Monitor high-risk clients",
+        anomaly:
+          highRiskClients.length > 0
+            ? `${highRiskClients[0]?.clientCode} has a risk score of ${highRiskClients[0]?.riskScore}/100 (${highRiskClients[0]?.riskReasons[0] || "execution friction"})`
+            : "Monitor high-risk clients",
         query: "Which clients should we consider discontinuing or renegotiating due to execution friction and dead deals?",
         category: "risk",
         impactBadge: "Critical Risk",
@@ -290,7 +307,7 @@ export async function generateDashboardInsights(
       {
         id: "q-unbilled-ops",
         title: "Unbilled Revenue Recovery",
-        anomaly: `₹${formatCurrency(Math.max(0, opsMetrics.totalValue - opsMetrics.totalInvoiced))} in unbilled work order balances`,
+        anomaly: `₹${formatCurrency(totalUnbilled)} in unbilled work order balances`,
         query: "Which work orders have completed execution but low invoice realization?",
         category: "revenue",
         impactBadge: "Cashflow",
@@ -306,7 +323,7 @@ export async function generateDashboardInsights(
       {
         id: "q-sector-pipeline",
         title: "Sector Growth Opportunity",
-        anomaly: "Sector conversion variance across Energy, Mining & Renewables",
+        anomaly: "Sector conversion variance across key sectors",
         query: "Compare Energy vs Mining vs Renewables in pipeline value and execution delivery.",
         category: "revenue",
         impactBadge: "Strategic",
@@ -351,13 +368,13 @@ Respond strictly in JSON adhering to this TypeScript interface:
     });
 
     const promptText = `Analyze the current live dataset and return the strategic executive insights JSON:
-- Total Pipeline Value: ₹${formatCurrency(pipelineMetrics.totalValue)} across ${pipelineMetrics.dealCount} deals
-- Total PO Contracts Value: ₹${formatCurrency(opsMetrics.totalValue)} | Total Invoiced: ₹${formatCurrency(opsMetrics.totalInvoiced)}
-- Delayed/Paused Work Orders: ${opsMetrics.delayedCount + opsMetrics.onHoldCount} (${opsMetrics.onHoldCount} paused/struck)
+- Active Pipeline: ₹${formatCurrency(pipelineMetrics.totalValue)} across ${pipelineMetrics.activeDealCount} open deals (${pipelineMetrics.dealCount} total tracked, ${pipelineMetrics.wonDealCount} won for ₹${formatCurrency(pipelineMetrics.wonValue)})
+- Total PO Contracts Value: ₹${formatCurrency(opsMetrics.totalValue)} | Total Invoiced: ₹${formatCurrency(opsMetrics.totalInvoiced)} | Unbilled Balance: ₹${formatCurrency(totalUnbilled)}
+- Delayed/Paused Work Orders: ${opsMetrics.delayedCount + opsMetrics.onHoldCount} (${opsMetrics.onHoldCount} paused/struck, ${opsMetrics.delayedCount} delayed)
 - High Risk Clients: ${highRiskClients.map((c) => `${c.clientCode} (Risk: ${c.riskScore}, Reasons: ${c.riskReasons.join(", ")})`).slice(0, 5).join("; ")}
-- Closing This Quarter: ${closingThisQuarter.length} deals
+- Closing This Quarter: ${closingThisQuarter.length} deals (₹${formatCurrency(closingQuarterValue)})
 - Stalled Deals: ${stalledDeals.map((d) => `${d.name} (${d.clientCode}, ₹${formatCurrency(d.value ?? 0)})`).slice(0, 5).join("; ")}
-- Sectors with largest value: ${Object.entries(pipelineMetrics.bySector).map(([s, d]) => `${s}: ₹${formatCurrency(d.value)}`).join(", ")}
+- Sectors with largest pipeline value: ${Object.entries(pipelineMetrics.bySector).map(([s, d]) => `${s}: ₹${formatCurrency(d.value)}`).join(", ")}
 `;
 
     const result = await model.generateContent(promptText);

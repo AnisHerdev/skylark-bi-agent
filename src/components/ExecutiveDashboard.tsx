@@ -254,7 +254,7 @@ export function ExecutiveDashboard({
             {formatCurrency(pipelineMetrics.totalValue)}
           </div>
           <div className="mt-2 flex flex-col xs:flex-row xs:items-center justify-between text-xs text-slate-600 dark:text-slate-300 gap-0.5">
-            <span>{pipelineMetrics.dealCount} active deals</span>
+            <span>{pipelineMetrics.activeDealCount} active deals ({pipelineMetrics.dealCount} total)</span>
             <span className="text-emerald-800 dark:text-emerald-400 font-semibold group-hover:underline">
               Avg {formatCurrency(pipelineMetrics.avgDealSize)}
             </span>

@@ -85,8 +85,12 @@ export interface DataQualityReport {
 }
 
 export interface PipelineMetrics {
-  totalValue: number;
-  dealCount: number;
+  totalValue: number; // Active in-flight pipeline value (Open deals)
+  dealCount: number; // Total deals tracked in system
+  activeDealCount: number; // Open / in-flight deals count
+  wonDealCount: number; // Won deals count
+  wonValue: number; // Closed-won deals total value
+  deadDealCount: number; // Dead / lost deals count
   avgDealSize: number;
   byStage: Record<string, { count: number; value: number }>;
   bySector: Record<string, { count: number; value: number }>;
