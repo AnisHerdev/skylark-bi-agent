@@ -7,12 +7,16 @@ import {
   FileSpreadsheet,
   PlusCircle,
   BarChart2,
+  LayoutDashboard,
+  MessageSquareText,
   X,
 } from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
   onCloseMobile: () => void;
+  activeView: "dashboard" | "chat";
+  onViewChange: (view: "dashboard" | "chat") => void;
   onSelectPrompt: (prompt: string) => void;
   onNewAnalysis: () => void;
 }
@@ -62,6 +66,8 @@ const PROMPT_CATEGORIES = [
 export function Sidebar({
   isOpen,
   onCloseMobile,
+  activeView,
+  onViewChange,
   onSelectPrompt,
   onNewAnalysis,
 }: SidebarProps) {
@@ -104,19 +110,54 @@ export function Sidebar({
             </button>
           </div>
 
+          {/* Primary View Switcher in Sidebar */}
+          <div className="p-3 space-y-1.5 border-b border-slate-200/80 dark:border-slate-800/80">
+            <button
+              onClick={() => {
+                onViewChange("dashboard");
+                onCloseMobile();
+              }}
+              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                activeView === "dashboard"
+                  ? "bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-slate-950"
+                  : "text-slate-700 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-900"
+              }`}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Executive Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onViewChange("chat");
+                onCloseMobile();
+              }}
+              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                activeView === "chat"
+                  ? "bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-slate-950"
+                  : "text-slate-700 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-900"
+              }`}
+            >
+              <MessageSquareText className="h-4 w-4" />
+              <span>AI BI Agent Chat</span>
+            </button>
+          </div>
+
           {/* Action Button */}
           <div className="p-3">
             <button
               onClick={() => {
                 onNewAnalysis();
+                onViewChange("chat");
                 onCloseMobile();
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all hover:bg-emerald-500 active:scale-[0.98] dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600/30 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-[0.98] dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
             >
               <PlusCircle className="h-4 w-4" />
-              <span>New Analysis</span>
+              <span>New Conversation</span>
             </button>
           </div>
+
 
           {/* Categorized Quick Queries */}
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">

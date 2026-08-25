@@ -383,3 +383,73 @@ export function buildCombinedDataQuality(
   };
 }
 
+export function computeStageFunnel(deals: Deal[]): import("./types").StageFunnelItem[] {
+  const STAGE_ORDER: { stage: import("./types").DealStage; label: string }[] = [
+    { stage: "lead", label: "Lead Identification" },
+    { stage: "qualification", label: "Qualified / Scoped" },
+    { stage: "proposal", label: "Proposal Submitted" },
+    { stage: "negotiation", label: "Contract & Negotiation" },
+    { stage: "closed_won", label: "Closed Won" },
+  ];
+
+  return STAGE_ORDER.map((item) => {
+    const stageDeals = deals.filter((d) => d.stage === item.stage);
+    const value = stageDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+    return {
+      stage: item.stage,
+      label: item.label,
+      count: stageDeals.length,
+      value,
+    };
+  });
+}
+
+export function computeSectorComparisons(
+  deals: Deal[],
+  workOrders: WorkOrder[]
+): import("./types").SectorComparison[] {
+  const sectorMap: Record<
+    string,
+    { pipelineValue: number; poValue: number; dealCount: number; workOrderCount: number }
+  > = {};
+
+  const getCleanSector = (raw: string) => {
+    if (!raw || raw.toLowerCase() === "others") return "Other Sectors";
+    // Format nicely: energy -> Energy, pure_service -> Pure Service
+    return raw
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  for (const deal of deals) {
+    if (deal.stage === "closed_lost") continue;
+    const s = getCleanSector(deal.sector);
+    if (!sectorMap[s]) {
+      sectorMap[s] = { pipelineValue: 0, poValue: 0, dealCount: 0, workOrderCount: 0 };
+    }
+    sectorMap[s].pipelineValue += deal.value ?? 0;
+    sectorMap[s].dealCount += 1;
+  }
+
+  for (const wo of workOrders) {
+    const s = getCleanSector(wo.sector);
+    if (!sectorMap[s]) {
+      sectorMap[s] = { pipelineValue: 0, poValue: 0, dealCount: 0, workOrderCount: 0 };
+    }
+    sectorMap[s].poValue += wo.value ?? 0;
+    sectorMap[s].workOrderCount += 1;
+  }
+
+  return Object.entries(sectorMap)
+    .map(([sector, data]) => ({
+      sector,
+      pipelineValue: data.pipelineValue,
+      poValue: data.poValue,
+      dealCount: data.dealCount,
+      workOrderCount: data.workOrderCount,
+    }))
+    .sort((a, b) => b.pipelineValue + b.poValue - (a.pipelineValue + a.poValue));
+}
+
