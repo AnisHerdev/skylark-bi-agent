@@ -4,6 +4,7 @@ import {
   fetchAgentContext,
   generateGeminiResponse,
 } from "@/lib/agent";
+import { buildCombinedDataQuality } from "@/lib/analytics";
 
 const requestSchema = z.object({
   message: z.string().min(1, "Message is required"),
@@ -23,18 +24,21 @@ export async function POST(req: NextRequest) {
 
     const { message } = parsed.data;
 
-    // Fetch dynamic context from Monday.com boards and run data normalizer
+    // 100% Dynamic fetch from Monday.com boards with on-the-fly normalization
     const ctx = await fetchAgentContext();
 
-    // Generate executive business intelligence answer using Google Gemini 2.0 Flash
+    // Generate executive BI answer via Google Gemini 2.5 Flash
     const answer = await generateGeminiResponse(message, ctx);
+
+    // Generate comprehensive, explainable data quality & audit metrics
+    const dataQuality = buildCombinedDataQuality(
+      ctx.dealsQuality,
+      ctx.workOrdersQuality
+    );
 
     return NextResponse.json({
       answer,
-      dataQuality: {
-        deals: ctx.dealsQuality,
-        workOrders: ctx.workOrdersQuality,
-      },
+      dataQuality,
     });
   } catch (error) {
     console.error("Chat API error:", error);

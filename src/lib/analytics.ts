@@ -8,6 +8,7 @@ import {
   OperationalMetrics,
   ClientProfile,
   DataQualityReport,
+  CombinedDataQuality,
 } from "./types";
 
 dayjs.extend(quarterOfYear);
@@ -328,3 +329,57 @@ export function mergeDataQuality(dealsQ: DataQualityReport, woQ: DataQualityRepo
 ${dealsMissing || "- None"}
 ${woMissing || "- None"}`;
 }
+
+export function buildCombinedDataQuality(
+  dealsQ: DataQualityReport,
+  woQ: DataQualityReport
+): CombinedDataQuality {
+  const totalRecords = dealsQ.totalRecords + woQ.totalRecords;
+  const validRecords = dealsQ.validRecords + woQ.validRecords;
+  const droppedHeaderRows = dealsQ.droppedHeaderRows + woQ.droppedHeaderRows;
+  const invalidDates = dealsQ.invalidDates + woQ.invalidDates;
+  const invalidValues = dealsQ.invalidValues + woQ.invalidValues;
+
+  const dealsMissingCount = dealsQ.missingFields.reduce((sum, f) => sum + f.count, 0);
+  const woMissingCount = woQ.missingFields.reduce((sum, f) => sum + f.count, 0);
+  const totalMissing = dealsMissingCount + woMissingCount;
+
+  // Calculate Health Score (100 base minus deductions for missing critical metrics)
+  const validityRatio = totalRecords > 0 ? (validRecords / totalRecords) * 100 : 100;
+  const missingPenalty = totalRecords > 0 ? Math.min(25, (totalMissing / (totalRecords * 2)) * 100) : 0;
+  const overallHealthScore = Math.max(50, Math.min(100, Math.round(validityRatio - missingPenalty)));
+
+  const summaryNotes: string[] = [];
+  if (droppedHeaderRows > 0) {
+    summaryNotes.push(`Filtered ${droppedHeaderRows} accidental duplicate header/metadata row(s) (e.g. rows 52 & 181).`);
+  }
+  const closeDateMissing = dealsQ.missingFields.find((f) => f.field === "Expected Close Date")?.count;
+  if (closeDateMissing) {
+    summaryNotes.push(`${closeDateMissing} deals lack expected close dates — excluded from quarter-specific forecasting.`);
+  }
+  const dealValMissing = dealsQ.missingFields.find((f) => f.field === "Deal Value")?.count;
+  if (dealValMissing) {
+    summaryNotes.push(`${dealValMissing} deals have unpopulated deal values.`);
+  }
+  const poValMissing = woQ.missingFields.find((f) => f.field === "PO Value")?.count;
+  if (poValMissing) {
+    summaryNotes.push(`${poValMissing} work orders have unpopulated PO values.`);
+  }
+  const normalizedSectorsCount = dealsQ.normalizedSectors.length + woQ.normalizedSectors.length;
+  if (normalizedSectorsCount > 0) {
+    summaryNotes.push(`Normalized ${normalizedSectorsCount} sector entries to standard taxonomy.`);
+  }
+
+  return {
+    totalRecords,
+    validRecords,
+    droppedHeaderRows,
+    invalidDates,
+    invalidValues,
+    overallHealthScore,
+    deals: dealsQ,
+    workOrders: woQ,
+    summaryNotes,
+  };
+}
+

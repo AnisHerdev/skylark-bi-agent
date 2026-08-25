@@ -109,10 +109,22 @@ export interface OperationalMetrics {
   totalInvoiced: number;
 }
 
+export interface CombinedDataQuality {
+  totalRecords: number;
+  validRecords: number;
+  droppedHeaderRows: number;
+  invalidDates: number;
+  invalidValues: number;
+  overallHealthScore: number;
+  deals: DataQualityReport;
+  workOrders: DataQualityReport;
+  summaryNotes: string[];
+}
+
 export interface AgentResponse {
   answer: string;
   metrics?: Record<string, unknown>;
-  dataQuality?: DataQualityReport;
+  dataQuality?: CombinedDataQuality;
   insights?: string[];
   caveats?: string[];
 }
@@ -123,7 +135,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   metrics?: Record<string, unknown>;
-  dataQuality?: DataQualityReport;
+  dataQuality?: CombinedDataQuality;
 }
 
 export interface MondayColumnValue {
