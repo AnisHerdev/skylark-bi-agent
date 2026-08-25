@@ -194,27 +194,36 @@ export function parseNumber(value: string | number | null | undefined): number |
 
 function getColumnValue(item: MondayItem, possibleTitles: string[]): string | null {
   const normalizedTargets = possibleTitles.map((t) => t.toLowerCase().trim());
+  
+  // 1. Exact match pass (highest priority)
   for (const c of item.column_values) {
     const colTitle = c.column?.title?.toLowerCase().trim() || "";
     if (normalizedTargets.includes(colTitle)) {
       const text = c.text?.trim();
-      if (text && text !== "") return text;
+      if (text && text !== "" && text.toLowerCase() !== "null") return text;
     }
   }
 
-  // Fallback: partial search
+  // 2. Safe prefix/word match pass (avoiding false positives like software platform columns)
   for (const c of item.column_values) {
     const colTitle = c.column?.title?.toLowerCase().trim() || "";
+    // Never match questions about software platform
+    if (colTitle.startsWith("is any skylark") || colTitle.includes("software platform")) {
+      continue;
+    }
+
     for (const target of normalizedTargets) {
-      if (colTitle.includes(target) || target.includes(colTitle)) {
+      // Only match if target is at least 6 characters or exact word boundary
+      if (target.length >= 6 && (colTitle.startsWith(target) || colTitle.endsWith(target))) {
         const text = c.text?.trim();
-        if (text && text !== "") return text;
+        if (text && text !== "" && text.toLowerCase() !== "null") return text;
       }
     }
   }
 
   return null;
 }
+
 
 function isHeaderRow(name: string, firstCols: (string | null)[]): boolean {
   const lowerName = (name || "").toLowerCase().trim();
@@ -384,7 +393,13 @@ export function parseWorkOrders(items: MondayItem[]): {
       continue;
     }
 
-    const customerCode = customerCodeRaw || name || "UNKNOWN_WO_CUSTOMER";
+    const isInvalidCustomerCode =
+      !customerCodeRaw ||
+      customerCodeRaw.trim().toUpperCase() === "NONE" ||
+      customerCodeRaw.trim().toUpperCase() === "NULL" ||
+      customerCodeRaw.trim().toUpperCase() === "SPECTRA";
+
+    const customerCode = !isInvalidCustomerCode ? customerCodeRaw : (name || "UNKNOWN_WO_CUSTOMER");
     const dealNameMasked = dealNameMaskedRaw || name;
     const natureOfWork = getColumnValue(item, ["Nature of Work", "Contract Type", "Type"]) || "Project";
     const executionStatusRaw = getColumnValue(item, ["Execution Status", "Status", "Work Status"]);

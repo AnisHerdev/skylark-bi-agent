@@ -126,11 +126,28 @@ export function computeOperationalMetrics(workOrders: WorkOrder[]): OperationalM
 export function normalizeCompanyCode(code: string): string {
   if (!code) return "UNKNOWN";
   const clean = code.trim().toUpperCase();
+  if (
+    clean === "NONE" ||
+    clean === "NULL" ||
+    clean === "N/A" ||
+    clean === "-" ||
+    clean === "SPECTRA"
+  ) {
+    return "UNKNOWN";
+  }
+
   // Strip WOCOMPANY_ or COMPANY_ or COMPANY prefixes to get numeric ID (e.g. WOCOMPANY_001 -> COMPANY_001)
   const numMatch = clean.match(/(?:WOCOMPANY|COMPANY|WO_COMPANY|CUST)[_]?(\d+)/i);
   if (numMatch) {
     return `COMPANY_${numMatch[1].padStart(3, "0")}`;
   }
+
+  // Match SDPLDEAL-###
+  const sdplMatch = clean.match(/(?:SDPLDEAL)[-_]?(\d+)/i);
+  if (sdplMatch) {
+    return `SDPLDEAL_${sdplMatch[1].padStart(3, "0")}`;
+  }
+
   return clean;
 }
 
@@ -149,6 +166,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   for (const deal of deals) {
     const rawCode = deal.clientCode || deal.name;
     const norm = normalizeCompanyCode(rawCode);
+    if (norm === "UNKNOWN") continue;
+
     if (!clientMap[norm]) {
       clientMap[norm] = {
         primaryCode: rawCode,
@@ -164,6 +183,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   for (const wo of workOrders) {
     const rawCode = wo.customerCode || wo.name;
     const norm = normalizeCompanyCode(rawCode);
+    if (norm === "UNKNOWN") continue;
+
     if (!clientMap[norm]) {
       clientMap[norm] = {
         primaryCode: rawCode,
@@ -233,7 +254,8 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
     // Factor 3: Completed work with low/zero invoice realization
     if (completedWorkOrderCount > 0 && totalProjectValue > 0 && totalInvoicedValue < totalProjectValue * 0.4) {
       riskScore += 20;
-      riskReasons.push(`Low invoice realization (₹${(totalProjectValue - totalInvoicedValue).toLocaleString()} unbilled/uncollected)`);
+      const unbilled = Math.max(0, Math.round(totalProjectValue - totalInvoicedValue));
+      riskReasons.push(`Low invoice realization (₹${unbilled.toLocaleString()} unbilled/uncollected)`);
     }
 
     // Factor 4: High volume of open deals with zero closure date
@@ -270,6 +292,7 @@ export function computeClientProfiles(deals: Deal[], workOrders: WorkOrder[]): C
   // Sort by riskScore descending
   return profiles.sort((a, b) => b.riskScore - a.riskScore);
 }
+
 
 export function getHighRiskClients(profiles: ClientProfile[]): ClientProfile[] {
   return profiles.filter((p) => p.riskScore >= 40 || p.pausedWorkOrderCount > 0);
