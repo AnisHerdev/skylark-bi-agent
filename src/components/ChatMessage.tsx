@@ -136,7 +136,7 @@ export function ChatMessage({
             )}
 
             {/* Smart Contextual Follow-up Chips (Zero-Typing Drill-Downs) */}
-            {!isUser && message.suggestions && message.suggestions.length > 0 && onSelectSuggestion && (
+            {!isUser && isLatestAssistant && message.suggestions && message.suggestions.length > 0 && onSelectSuggestion && (
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
                 <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
                   Explore Next

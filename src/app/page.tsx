@@ -62,36 +62,34 @@ const STARTER_CARDS = [
 ];
 
 export default function Home() {
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // 1. Load Chat History from LocalStorage on mount
-  useEffect(() => {
+  const [messages, setMessages] = useState<ChatMessageType[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: ChatMessageType[] = JSON.parse(saved);
-        // Revive ISO date strings to Date objects
-        const hydrated = parsed.map((m) => ({
+        return parsed.map((m) => ({
           ...m,
           timestamp: new Date(m.timestamp),
         }));
-        setMessages(hydrated);
       }
     } catch (e) {
       console.warn("Failed to load chat history from localStorage", e);
-    } finally {
-      setIsStorageLoaded(true);
     }
-  }, []);
+    return [];
+  });
+  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(false);
 
-  // 2. Persist Chat History to LocalStorage on change (only after initial load)
+  // Persist Chat History to LocalStorage on change (after initial mount)
   useEffect(() => {
-    if (!isStorageLoaded) return;
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     try {
       if (messages.length > 0) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
@@ -101,7 +99,7 @@ export default function Home() {
     } catch (e) {
       console.warn("Failed to save chat history to localStorage", e);
     }
-  }, [messages, isStorageLoaded]);
+  }, [messages]);
 
   // Auto-scroll to latest message
   useEffect(() => {

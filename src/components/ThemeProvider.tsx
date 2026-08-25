@@ -13,21 +13,19 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "system";
     try {
       const stored = localStorage.getItem("skylark-theme") as Theme | null;
       if (stored && ["light", "dark", "system"].includes(stored)) {
-        setThemeState(stored);
+        return stored;
       }
     } catch {
       // ignore
     }
-    setMounted(true);
-  }, []);
+    return "system";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const root = document.documentElement;
@@ -73,9 +71,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
-      <div style={{ visibility: mounted ? "visible" : "visible" }}>
-        {children}
-      </div>
+      {children}
     </ThemeContext.Provider>
   );
 }
