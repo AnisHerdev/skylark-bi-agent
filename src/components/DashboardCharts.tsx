@@ -38,18 +38,18 @@ function formatCurrencyShort(value: number): string {
 }
 
 const STAGE_COLORS = [
-  "#38bdf8", // Sky (Lead)
-  "#818cf8", // Indigo (Qualification)
-  "#f59e0b", // Amber (Proposal)
-  "#10b981", // Emerald (Negotiation)
-  "#059669", // Dark Emerald (Closed Won)
+  "#0284c7", // Sky 600 (Lead)
+  "#6366f1", // Indigo 500 (Qualification)
+  "#d97706", // Amber 600 (Proposal)
+  "#059669", // Emerald 600 (Negotiation)
+  "#047857", // Emerald 700 (Closed Won)
 ];
 
 const OPS_STATUS_COLORS = {
-  active: "#10b981", // Emerald
-  completed: "#3b82f6", // Blue
-  delayed: "#f59e0b", // Amber
-  on_hold: "#f43f5e", // Rose
+  active: "#059669", // Emerald 600
+  completed: "#2563eb", // Blue 600
+  delayed: "#d97706", // Amber 600
+  on_hold: "#e11d48", // Rose 600
 };
 
 export function PipelineFunnelChart({ data, onDrillDown }: PipelineFunnelChartProps) {
@@ -65,13 +65,13 @@ export function PipelineFunnelChart({ data, onDrillDown }: PipelineFunnelChartPr
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
             Pipeline Stage Funnel
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Opportunity velocity & cumulative value across stages
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Cumulative value & deal velocity across stages
           </p>
         </div>
         <button
@@ -80,24 +80,24 @@ export function PipelineFunnelChart({ data, onDrillDown }: PipelineFunnelChartPr
               "Provide a detailed breakdown of all pipeline deals by stage with win probabilities."
             )
           }
-          className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+          className="flex items-center gap-1 text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           <span>Deep-dive</span>
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="h-64 w-full">
+      <div className="h-60 sm:h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
           >
             <XAxis
               type="number"
               tickFormatter={(val) => formatCurrencyShort(val)}
-              stroke="#94a3b8"
+              stroke="#64748b"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -105,8 +105,8 @@ export function PipelineFunnelChart({ data, onDrillDown }: PipelineFunnelChartPr
             <YAxis
               dataKey="name"
               type="category"
-              width={130}
-              stroke="#64748b"
+              width={110}
+              stroke="#475569"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -120,22 +120,22 @@ export function PipelineFunnelChart({ data, onDrillDown }: PipelineFunnelChartPr
                       ? ((p.value / totalPipelineValue) * 100).toFixed(1)
                       : "0";
                   return (
-                    <div className="rounded-xl border border-slate-200/80 bg-white/95 p-3 shadow-lg backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95 text-xs space-y-1">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="rounded-xl border border-slate-300 bg-white/95 p-3 shadow-md backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/95 text-xs space-y-1">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
                         {p.name}
                       </div>
-                      <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center justify-between gap-4 text-slate-700 dark:text-slate-300">
                         <span>Total Value:</span>
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="font-bold text-emerald-800 dark:text-emerald-400">
                           {p.formattedValue}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between gap-4 text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-400">
                         <span>Deal Count:</span>
-                        <span>{p.count} deals ({share}% of pipeline)</span>
+                        <span>{p.count} deals ({share}%)</span>
                       </div>
-                      <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        Click to inspect stage deals ↗
+                      <div className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold">
+                        Tap to inspect stage deals ↗
                       </div>
                     </div>
                   );
@@ -172,7 +172,7 @@ export function SectorComparisonChart({
   data,
   onDrillDown,
 }: SectorComparisonChartProps) {
-  const topSectors = data.slice(0, 6);
+  const topSectors = data.slice(0, 5);
 
   const chartData = topSectors.map((s) => ({
     sector: s.sector,
@@ -184,13 +184,13 @@ export function SectorComparisonChart({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Sector Intelligence: Pipeline vs PO Execution
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+            Sector Intelligence
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Compare active sales pipeline against operational PO delivery
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Pipeline opportunity vs PO Contract delivery
           </p>
         </div>
         <button
@@ -199,33 +199,33 @@ export function SectorComparisonChart({
               "Compare all sectors in terms of revenue, average deal size, and active work orders."
             )
           }
-          className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+          className="flex items-center gap-1 text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
-          <span>Compare All</span>
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <span>Compare</span>
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="h-64 w-full">
+      <div className="h-60 sm:h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: 10, bottom: 25 }}
+            margin={{ top: 10, right: 10, left: -10, bottom: 25 }}
           >
             <XAxis
               dataKey="sector"
-              stroke="#64748b"
-              fontSize={11}
+              stroke="#475569"
+              fontSize={10}
               tickLine={false}
               axisLine={false}
               interval={0}
-              angle={-20}
+              angle={-25}
               textAnchor="end"
             />
             <YAxis
               tickFormatter={(val) => formatCurrencyShort(val)}
-              stroke="#94a3b8"
-              fontSize={11}
+              stroke="#64748b"
+              fontSize={10}
               tickLine={false}
               axisLine={false}
             />
@@ -235,20 +235,20 @@ export function SectorComparisonChart({
                   const pipeVal = Number(payload.find((p) => p.dataKey === "Pipeline")?.value || 0);
                   const poVal = Number(payload.find((p) => p.dataKey === "PO Value")?.value || 0);
                   return (
-                    <div className="rounded-xl border border-slate-200/80 bg-white/95 p-3 shadow-lg backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95 text-xs space-y-1">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="rounded-xl border border-slate-300 bg-white/95 p-3 shadow-md backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/95 text-xs space-y-1">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
                         {label} Sector
                       </div>
-                      <div className="flex items-center justify-between gap-4 text-emerald-600 dark:text-emerald-400">
+                      <div className="flex items-center justify-between gap-4 text-emerald-800 dark:text-emerald-400">
                         <span>Pipeline Opportunity:</span>
                         <span className="font-bold">{formatCurrencyShort(pipeVal)}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-4 text-teal-600 dark:text-teal-400">
+                      <div className="flex items-center justify-between gap-4 text-teal-700 dark:text-teal-400">
                         <span>PO Contract Delivery:</span>
                         <span className="font-bold">{formatCurrencyShort(poVal)}</span>
                       </div>
-                      <div className="mt-1 text-[10px] text-slate-400">
-                        Click bar to analyze {label} sector ↗
+                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        Tap bar to analyze {label} ↗
                       </div>
                     </div>
                   );
@@ -258,7 +258,7 @@ export function SectorComparisonChart({
             />
             <Bar
               dataKey="Pipeline"
-              fill="#10b981"
+              fill="#059669"
               radius={[6, 6, 0, 0]}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={(entry: any) => {
@@ -269,7 +269,7 @@ export function SectorComparisonChart({
             />
             <Bar
               dataKey="PO Value"
-              fill="#14b8a6"
+              fill="#0d9488"
               radius={[6, 6, 0, 0]}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={(entry: any) => {
@@ -282,14 +282,14 @@ export function SectorComparisonChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="flex items-center justify-center gap-6 mt-2 text-xs text-slate-600 dark:text-slate-400">
+      <div className="flex items-center justify-center gap-6 mt-1 text-xs text-slate-700 dark:text-slate-300">
         <div className="flex items-center gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-xs bg-[#10b981]" />
-          <span>Sales Pipeline Value</span>
+          <div className="h-2.5 w-2.5 rounded-xs bg-[#059669]" />
+          <span>Sales Pipeline</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-xs bg-[#14b8a6]" />
-          <span>PO Delivery Value</span>
+          <div className="h-2.5 w-2.5 rounded-xs bg-[#0d9488]" />
+          <span>PO Delivery</span>
         </div>
       </div>
     </div>
@@ -302,7 +302,7 @@ export function OperationsHealthDonut({
 }: OpsHealthChartProps) {
   const pieData = [
     {
-      name: "Active / Ongoing",
+      name: "Active",
       value: opsMetrics.activeCount,
       color: OPS_STATUS_COLORS.active,
       key: "in_progress",
@@ -320,7 +320,7 @@ export function OperationsHealthDonut({
       key: "delayed",
     },
     {
-      name: "Paused / Struck",
+      name: "Paused",
       value: opsMetrics.onHoldCount,
       color: OPS_STATUS_COLORS.on_hold,
       key: "on_hold",
@@ -335,11 +335,11 @@ export function OperationsHealthDonut({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Execution & Delivery Health
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+            Execution Health
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Work order execution status distribution
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Work order status distribution
           </p>
         </div>
         <button
@@ -348,20 +348,20 @@ export function OperationsHealthDonut({
               "List all delayed or paused work orders with assigned teams, customer codes, and values."
             )
           }
-          className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+          className="flex items-center gap-1 text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           <span>Audit</span>
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="relative flex-1 flex items-center justify-center min-h-[190px]">
-        <ResponsiveContainer width="100%" height={190}>
+      <div className="relative flex-1 flex items-center justify-center min-h-[170px]">
+        <ResponsiveContainer width="100%" height={170}>
           <PieChart>
             <Pie
               data={pieData}
-              innerRadius={52}
-              outerRadius={78}
+              innerRadius={48}
+              outerRadius={72}
               paddingAngle={3}
               dataKey="value"
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -382,12 +382,12 @@ export function OperationsHealthDonut({
                   const p = payload[0].payload;
                   const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0";
                   return (
-                    <div className="rounded-xl border border-slate-200/80 bg-white/95 p-2.5 shadow-lg backdrop-blur-xs dark:border-slate-800 dark:bg-slate-900/95 text-xs space-y-0.5">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="rounded-xl border border-slate-300 bg-white/95 p-2.5 shadow-md backdrop-blur-xs dark:border-slate-700 dark:bg-slate-900/95 text-xs space-y-0.5">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
                         {p.name}
                       </div>
-                      <div className="text-slate-600 dark:text-slate-300">
-                        {p.value} work orders ({pct}%)
+                      <div className="text-slate-700 dark:text-slate-300">
+                        {p.value} orders ({pct}%)
                       </div>
                     </div>
                   );
@@ -400,35 +400,35 @@ export function OperationsHealthDonut({
 
         {/* Center Score Indicator */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
             {healthRate}%
           </span>
-          <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500">
+          <span className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-400">
             On Track
           </span>
         </div>
       </div>
 
       {/* Legend & Breakdown list */}
-      <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+      <div className="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
         {pieData.map((item) => (
           <button
             key={item.name}
             onClick={() =>
               onDrillDown(`Show all work orders with execution status '${item.name}'.`)
             }
-            className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition-colors"
+            className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition-colors min-h-[44px]"
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <div
                 className="h-2 w-2 rounded-full shrink-0"
                 style={{ backgroundColor: item.color }}
               />
-              <span className="text-xs text-slate-600 dark:text-slate-400 truncate">
+              <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
                 {item.name}
               </span>
             </div>
-            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 ml-1">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 ml-1">
               {item.value}
             </span>
           </button>

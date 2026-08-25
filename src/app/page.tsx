@@ -11,14 +11,17 @@ import {
   DashboardData,
 } from "@/lib/types";
 import {
-  Sparkles,
   TrendingUp,
-  Activity,
-  FileText,
+  Workflow,
   ArrowRight,
   Layers,
   Square,
 } from "lucide-react";
+import {
+  SkylarkLogo,
+  SkylarkIntelligenceIcon,
+  ExecutiveBriefingIcon,
+} from "@/components/icons/SkylarkIcons";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 11);
@@ -31,43 +34,43 @@ const STARTER_CARDS = [
   {
     category: "Pipeline & Revenue",
     icon: TrendingUp,
-    color: "text-emerald-600 dark:text-emerald-400",
+    color: "text-emerald-800 dark:text-emerald-400",
     bgColor: "bg-emerald-500/10",
-    borderHover: "hover:border-emerald-300 dark:hover:border-emerald-700/60",
+    borderHover: "hover:border-emerald-400 dark:hover:border-emerald-600",
     query: "How is our pipeline looking this quarter?",
-    description: "Analyze current deal volumes, total pipeline value, and stage distribution.",
+    description: "Analyze active deal volumes, total pipeline value, and stage distribution.",
   },
   {
-    category: "Sector Comparison",
+    category: "Sector Intelligence",
     icon: Layers,
-    color: "text-teal-600 dark:text-teal-400",
+    color: "text-teal-800 dark:text-teal-400",
     bgColor: "bg-teal-500/10",
-    borderHover: "hover:border-teal-300 dark:hover:border-teal-700/60",
+    borderHover: "hover:border-teal-400 dark:hover:border-teal-600",
     query: "Compare Energy vs Manufacturing pipeline.",
     description: "Sector-by-sector breakdown of deal counts, win rates, and total PO values.",
   },
   {
     category: "Operations & Delivery",
-    icon: Activity,
-    color: "text-blue-600 dark:text-blue-400",
+    icon: Workflow,
+    color: "text-blue-800 dark:text-blue-400",
     bgColor: "bg-blue-500/10",
-    borderHover: "hover:border-blue-300 dark:hover:border-blue-700/60",
+    borderHover: "hover:border-blue-400 dark:hover:border-blue-600",
     query: "How many work orders are delayed?",
     description: "Track execution status, bottleneck projects, and unbilled work order balances.",
   },
   {
-    category: "Leadership Briefing",
-    icon: FileText,
-    color: "text-indigo-600 dark:text-indigo-400",
+    category: "Executive Briefing",
+    icon: ExecutiveBriefingIcon,
+    color: "text-indigo-800 dark:text-indigo-400",
     bgColor: "bg-indigo-500/10",
-    borderHover: "hover:border-indigo-300 dark:hover:border-indigo-700/60",
+    borderHover: "hover:border-indigo-400 dark:hover:border-indigo-600",
     query: "Generate a comprehensive leadership update.",
-    description: "Synthesize an executive summary with wins, operational alerts, and risks.",
+    description: "Synthesize an executive briefing with revenue wins, delivery alerts, and risks.",
   },
 ];
 
 export default function Home() {
-  // Navigation View State: Primary landing view is the Executive Dashboard
+  // Navigation View State: Primary view is Executive Dashboard
   const [activeView, setActiveView] = useState<"dashboard" | "chat">("dashboard");
 
   // Dashboard Data & Sync State
@@ -174,7 +177,7 @@ export default function Home() {
     return () => clearInterval(tickerInterval);
   }, [lastSyncedTime]);
 
-  // Persist Chat History to LocalStorage on change (after initial mount)
+  // Persist Chat History to LocalStorage
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true;
@@ -316,7 +319,12 @@ export default function Home() {
 
         {/* View 1: Executive Dashboard View */}
         {activeView === "dashboard" && (
-          <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 md:px-8">
+          <main
+            id="view-dashboard"
+            role="region"
+            aria-labelledby="tab-dashboard"
+            className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 md:px-8"
+          >
             <div className="mx-auto max-w-6xl">
               <ExecutiveDashboard
                 data={dashboardData}
@@ -328,37 +336,40 @@ export default function Home() {
           </main>
         )}
 
-        {/* View 2: AI BI Agent Conversational Workspace */}
+        {/* View 2: AI Strategic Inquiries Conversational Workspace */}
         {activeView === "chat" && (
           <>
             <main
+              id="view-chat"
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 md:px-8"
+              role="region"
+              aria-labelledby="tab-chat"
+              className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 md:px-8"
             >
               <div className="mx-auto max-w-4xl">
                 {messages.length === 0 ? (
-                  <div className="flex min-h-[75vh] flex-col items-center justify-center py-8">
+                  <div className="flex min-h-[70vh] flex-col items-center justify-center py-6">
                     {/* Hero Icon & Title */}
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 ring-8 ring-emerald-50 dark:ring-emerald-950/40">
-                      <Sparkles className="h-7 w-7" />
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-md shadow-emerald-700/20 dark:bg-emerald-600">
+                      <SkylarkLogo className="h-7 w-7 text-white" />
                     </div>
 
-                    <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
+                    <h1 className="text-center text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
                       Skylark Business Intelligence
                     </h1>
-                    <p className="mt-2 max-w-lg text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                      Ask natural language questions to analyze sales pipelines, work orders, client health, and executive briefings.
+                    <p className="mt-1.5 max-w-md text-center text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                      Ask strategic questions across sales pipelines, work order execution, customer health, and executive briefings.
                     </p>
 
                     {/* Starter Prompt Cards Grid */}
-                    <div className="mt-8 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="mt-6 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {STARTER_CARDS.map((card) => {
                         const Icon = card.icon;
                         return (
                           <button
                             key={card.category}
                             onClick={() => handleSend(card.query)}
-                            className={`group relative flex flex-col text-left rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] dark:border-slate-800 dark:bg-slate-900 ${card.borderHover}`}
+                            className={`group relative flex flex-col text-left rounded-2xl border border-slate-300/80 bg-white p-3.5 sm:p-4 shadow-2xs transition-all hover:shadow-xs hover:-translate-y-0.5 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-800 dark:bg-slate-900 ${card.borderHover}`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -367,17 +378,17 @@ export default function Home() {
                                 >
                                   <Icon className="h-4 w-4" />
                                 </div>
-                                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                                   {card.category}
                                 </span>
                               </div>
-                              <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-emerald-500 dark:text-slate-600" />
+                              <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-emerald-700 dark:text-slate-500 dark:group-hover:text-emerald-400" aria-hidden="true" />
                             </div>
 
-                            <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            <div className="mt-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {card.query}
                             </div>
-                            <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                               {card.description}
                             </p>
                           </button>
@@ -396,30 +407,31 @@ export default function Home() {
                       />
                     ))}
 
-                    {/* Loading / Thinking State with Stop Action */}
+                    {/* Loading / Thinking State */}
                     {loading && (
-                      <div className="flex items-start gap-3 mb-6">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-slate-950">
-                          <Sparkles className="h-4 w-4" />
+                      <div className="flex items-start gap-3 mb-6" aria-live="polite">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs dark:bg-emerald-600">
+                          <SkylarkIntelligenceIcon className="h-4 w-4 text-white" />
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 min-w-[280px]">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-300/80 bg-white px-5 py-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900 min-w-[280px]">
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
-                              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-mint-pulse [animation-delay:-0.3s]" />
-                              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-mint-pulse [animation-delay:-0.15s]" />
-                              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-mint-pulse" />
+                            <div className="flex items-center gap-1.5" aria-hidden="true">
+                              <div className="h-2 w-2 rounded-full bg-emerald-600 animate-mint-pulse [animation-delay:-0.3s]" />
+                              <div className="h-2 w-2 rounded-full bg-emerald-600 animate-mint-pulse [animation-delay:-0.15s]" />
+                              <div className="h-2 w-2 rounded-full bg-emerald-600 animate-mint-pulse" />
                             </div>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                               Querying live Monday boards & generating intelligence...
                             </span>
                           </div>
 
                           <button
                             onClick={handleStop}
-                            className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-900 dark:hover:text-rose-400"
-                            title="Cancel generation"
+                            className="flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 focus-visible:ring-2 focus-visible:ring-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-950 dark:hover:border-rose-800 dark:hover:text-rose-300"
+                            title="Cancel analysis"
+                            aria-label="Cancel analysis"
                           >
-                            <Square className="h-3 w-3 fill-current" />
+                            <Square className="h-3 w-3 fill-current" aria-hidden="true" />
                             <span>Stop</span>
                           </button>
                         </div>
@@ -430,7 +442,7 @@ export default function Home() {
               </div>
             </main>
 
-            {/* Input Dock in Chat View */}
+            {/* Single Elegant Input Dock */}
             <ChatInput
               onSend={handleSend}
               onStop={handleStop}

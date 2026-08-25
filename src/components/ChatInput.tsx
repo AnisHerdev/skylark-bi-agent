@@ -48,12 +48,16 @@ export function ChatInput({ onSend, onStop, loading, disabled }: ChatInputProps)
   };
 
   return (
-    <div className="border-t border-slate-200/80 bg-white/90 p-2.5 backdrop-blur-md transition-colors dark:border-slate-800/80 dark:bg-slate-900/90 sm:p-4">
+    <div className="border-t border-slate-200/90 bg-white/95 p-2.5 sm:p-4 backdrop-blur-md transition-colors dark:border-slate-800 dark:bg-slate-900/95 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <form
         onSubmit={handleSubmit}
-        className="mx-auto max-w-4xl flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-1.5 shadow-xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-3 focus-within:ring-emerald-500/15 dark:border-slate-800 dark:bg-slate-950/70 dark:focus-within:border-emerald-400 dark:focus-within:bg-slate-900 dark:focus-within:ring-emerald-400/20"
+        className="mx-auto max-w-4xl flex items-end gap-2 rounded-2xl border border-slate-300/90 bg-slate-50/90 p-1.5 shadow-2xs transition-all focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-600/25 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-emerald-500 dark:focus-within:bg-slate-900"
       >
+        <label htmlFor="bi-chat-input" className="sr-only">
+          Ask Skylark BI a business question
+        </label>
         <textarea
+          id="bi-chat-input"
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -61,13 +65,13 @@ export function ChatInput({ onSend, onStop, loading, disabled }: ChatInputProps)
           onInput={handleInput}
           placeholder={
             loading
-              ? "Generating executive answer..."
+              ? "Synthesizing intelligence from live Monday boards..."
               : "Ask anything about sales, operations, or pipeline..."
           }
           disabled={loading}
           rows={1}
-          style={{ overflowY: "hidden" }}
-          className="flex-1 max-h-36 resize-none bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500 leading-normal"
+          style={{ overflowY: "hidden", outline: "none", boxShadow: "none" }}
+          className="flex-1 max-h-36 resize-none bg-transparent px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-none disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400 leading-normal"
         />
 
         <div className="flex items-center gap-1.5 pb-0.5 pr-0.5 sm:pb-1 sm:pr-1">
@@ -75,33 +79,35 @@ export function ChatInput({ onSend, onStop, loading, disabled }: ChatInputProps)
             <button
               type="button"
               onClick={onStop}
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-xs transition-all hover:bg-rose-500 active:scale-95 animate-pulse dark:bg-rose-500 dark:hover:bg-rose-400"
+              aria-label="Stop generation"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-700 text-white shadow-xs transition-all hover:bg-rose-600 active:scale-95 focus-visible:ring-2 focus-visible:ring-rose-600"
               title="Stop generation"
             >
-              <Square className="h-3.5 w-3.5 fill-current" />
+              <Square className="h-4 w-4 fill-current" aria-hidden="true" />
             </button>
           ) : (
             <button
               type="submit"
               disabled={!input.trim()}
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+              aria-label="Send query"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-xs transition-all hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500"
               title="Send query (Enter)"
             >
-              <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>
       </form>
 
       {/* Helper text */}
-      <div className="mx-auto mt-2 hidden max-w-4xl items-center justify-center text-[10.5px] text-slate-400 dark:text-slate-500 sm:flex">
+      <div className="mx-auto mt-2 hidden max-w-4xl items-center justify-center text-xs text-slate-600 dark:text-slate-400 sm:flex">
         {loading ? (
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-            Generating live intelligence • Click stop anytime to cancel
+          <span className="text-emerald-800 dark:text-emerald-300 font-semibold" aria-live="polite">
+            Analyzing live data records • Click stop anytime to cancel
           </span>
         ) : (
           <span className="flex items-center gap-1">
-            <CornerDownLeft className="h-2.5 w-2.5" />
+            <CornerDownLeft className="h-3 w-3" aria-hidden="true" />
             <span>
               Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line
             </span>
