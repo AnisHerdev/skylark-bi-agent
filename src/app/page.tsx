@@ -155,6 +155,7 @@ export default function Home() {
         content: data.answer,
         timestamp: new Date(),
         dataQuality: data.dataQuality,
+        suggestions: data.suggestions,
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
@@ -209,6 +210,7 @@ export default function Home() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onClearChat={handleClearChat}
+          onExecutiveBriefing={() => handleSend("Generate a comprehensive leadership update.")}
           hasMessages={messages.length > 0}
         />
 
@@ -269,8 +271,13 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-2 pb-4">
-                {messages.map((msg) => (
-                  <ChatMessage key={msg.id} message={msg} />
+                {messages.map((msg, idx) => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    isLatestAssistant={idx === messages.length - 1 && msg.role === "assistant"}
+                    onSelectSuggestion={(q) => handleSend(q)}
+                  />
                 ))}
 
                 {/* Loading / Thinking State with Stop Action */}

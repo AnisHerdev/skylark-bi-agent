@@ -22,6 +22,11 @@ export interface AgentContext {
   clientProfiles: ClientProfile[];
 }
 
+export interface GeneratedResult {
+  answer: string;
+  suggestions: string[];
+}
+
 export async function fetchAgentContext(): Promise<AgentContext> {
   const dealsBoardId = process.env.MONDAY_BOARD_ID_DEALS;
   const workOrdersBoardId = process.env.MONDAY_BOARD_ID_WORK_ORDERS;
@@ -64,6 +69,12 @@ export function buildSystemPrompt(): string {
   2. **Key Financial & Operational Metrics**
   3. **Strategic Business Insights & Risk Analysis**
   4. **Data Quality & Governance Caveats**
+- **Zero-Typing Drill-Downs**: At the very end of your response, ALWAYS append exactly 3 short, high-value follow-up questions under the heading:
+### Next Drill-Downs
+- [Question 1]
+- [Question 2]
+- [Question 3]
+
 - Current Reference Date: ${new Date().toISOString().split("T")[0]}`;
 }
 
@@ -184,7 +195,7 @@ ${dataQualitySummary}
 export async function generateGeminiResponse(
   question: string,
   ctx: AgentContext
-): Promise<string> {
+): Promise<GeneratedResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -206,8 +217,43 @@ export async function generateGeminiResponse(
 
   const prompt = buildUserPrompt(question, ctx);
   const result = await model.generateContent(prompt);
-  const response = result.response;
-  return response.text() || "No response generated.";
+  const rawText = result.response.text() || "No response generated.";
+
+  // Extract suggestions block and strip from rawText
+  const suggestionsMatch = rawText.match(
+    /(?:###|##)\s*(?:Next Drill-Downs|Suggested Next Questions|Suggested Follow-Ups)[\s\S]*$/i
+  );
+
+  let answer = rawText;
+  let suggestions: string[] = [];
+
+  if (suggestionsMatch) {
+    const block = suggestionsMatch[0];
+    answer = rawText.replace(block, "").trim();
+
+    // Extract bullet points
+    const lines = block.split("\n");
+    for (const line of lines) {
+      const match = line.match(/^\s*[-*•]\s*(?:\[\s*)?([^\]\n]+)(?:\])?/);
+      if (match && match[1]) {
+        const clean = match[1].trim();
+        if (clean && !clean.toLowerCase().includes("drill-down") && suggestions.length < 3) {
+          suggestions.push(clean);
+        }
+      }
+    }
+  }
+
+  // Fallbacks if LLM didn't format bullet points
+  if (suggestions.length === 0) {
+    suggestions = [
+      "Which clients have the highest unbilled work orders?",
+      "Compare sales pipeline vs operational delivery.",
+      "Show all paused or delayed projects.",
+    ];
+  }
+
+  return { answer, suggestions };
 }
 
 function formatCurrency(value: number): string {

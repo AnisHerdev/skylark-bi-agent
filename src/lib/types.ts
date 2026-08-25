@@ -127,6 +127,7 @@ export interface AgentResponse {
   dataQuality?: CombinedDataQuality;
   insights?: string[];
   caveats?: string[];
+  suggestions?: string[];
 }
 
 export interface ChatMessage {
@@ -136,6 +137,7 @@ export interface ChatMessage {
   timestamp: Date;
   metrics?: Record<string, unknown>;
   dataQuality?: CombinedDataQuality;
+  suggestions?: string[];
 }
 
 export interface MondayColumnValue {

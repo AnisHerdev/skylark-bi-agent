@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     // 100% Dynamic fetch from Monday.com boards with on-the-fly normalization
     const ctx = await fetchAgentContext();
 
-    // Generate executive BI answer via Google Gemini 2.5 Flash
-    const answer = await generateGeminiResponse(message, ctx);
+    // Generate executive BI answer and contextual follow-up drill-downs via Gemini 2.5 Flash
+    const { answer, suggestions } = await generateGeminiResponse(message, ctx);
 
     // Generate comprehensive, explainable data quality & audit metrics
     const dataQuality = buildCombinedDataQuality(
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       answer,
+      suggestions,
       dataQuality,
     });
   } catch (error) {
