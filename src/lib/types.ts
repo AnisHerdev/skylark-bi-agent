@@ -105,13 +105,34 @@ export interface MondayItem {
   updated_at: string;
 }
 
-export interface MondayBoardResponse {
-  boards: {
-    id: string;
-    name: string;
-    items_page: {
-      items: MondayItem[];
-      cursor: string | null;
-    };
-  }[];
+export interface MondayBoard {
+  id: string;
+  name: string;
+  items_page: {
+    items: MondayItem[];
+    cursor: string | null;
+  };
 }
+
+export interface MondayGraphQLResponse<T> {
+  data?: T;
+  errors?: {
+    message: string;
+    locations?: { line: number; column: number }[];
+    path?: string[];
+  }[];
+  error_message?: string;
+  account_id?: number;
+}
+
+export type MondayBoardResponse = MondayGraphQLResponse<{
+  boards: MondayBoard[];
+}>;
+
+export type MondayPaginationResponse = MondayGraphQLResponse<{
+  next_items_page: {
+    items: MondayItem[];
+    cursor: string | null;
+  };
+}>;
+
